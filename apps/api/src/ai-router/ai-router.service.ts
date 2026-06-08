@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AiProvider, AppConfig } from '../config/configuration';
+import { AiProviderName, AiSettings } from '../config/ai.config';
 import {
   AiCompletionRequest,
   AiCompletionResult,
@@ -12,7 +12,7 @@ import { GeminiProvider } from './providers/gemini.provider';
 import { ClaudeProvider } from './providers/claude.provider';
 
 export interface AiRouterAttemptLog {
-  provider: AiProvider;
+  provider: AiProviderName;
   ok: boolean;
   latencyMs: number;
   error?: string;
@@ -33,13 +33,13 @@ export interface AiRouterResult extends AiCompletionResult {
 @Injectable()
 export class AiRouterService {
   private readonly logger = new Logger(AiRouterService.name);
-  private readonly clients: Record<AiProvider, AiProviderClient>;
-  private readonly chain: AiProvider[];
+  private readonly clients: Record<AiProviderName, AiProviderClient>;
+  private readonly chain: AiProviderName[];
   private readonly timeoutMs: number;
   private readonly retryCount: number;
 
   constructor(
-    private readonly configService: ConfigService<AppConfig, true>,
+    private readonly configService: ConfigService<{ ai: AiSettings }, true>,
     openAiProvider: OpenAiProvider,
     geminiProvider: GeminiProvider,
     claudeProvider: ClaudeProvider,
@@ -54,14 +54,14 @@ export class AiRouterService {
     this.timeoutMs = ai.timeoutMs;
     this.retryCount = ai.retryCount;
 
-    const order: AiProvider[] = [ai.primaryProvider, ai.fallbackProvider];
+    const order: AiProviderName[] = [ai.primaryProvider, ai.fallbackProvider];
     if (ai.fallbackProvider2) {
       order.push(ai.fallbackProvider2);
     }
     // har bir provayder faqat bir marta zanjirda bo'lishi uchun dublikatlarni olib tashlaymiz,
     // so'ngra .env'da ko'rsatilmagan qolgan provayderlarni oxiriga qo'shamiz (resilience uchun)
-    const allProviders: AiProvider[] = ['openai', 'claude', 'gemini'];
-    const seen = new Set<AiProvider>();
+    const allProviders: AiProviderName[] = ['openai', 'claude', 'gemini'];
+    const seen = new Set<AiProviderName>();
     this.chain = [...order, ...allProviders].filter((provider) => {
       if (seen.has(provider)) return false;
       seen.add(provider);
@@ -113,7 +113,7 @@ export class AiRouterService {
   }
 
   /** Admin panel uchun: har provayderning sozlanganlik holatini qaytaradi */
-  getProviderStatus(): { provider: AiProvider; configured: boolean; order: number }[] {
+  getProviderStatus(): { provider: AiProviderName; configured: boolean; order: number }[] {
     return this.chain.map((provider, index) => ({
       provider,
       configured: this.clients[provider].isConfigured,

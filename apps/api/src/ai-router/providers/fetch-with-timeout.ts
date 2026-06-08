@@ -1,8 +1,8 @@
 import { AiProviderError } from '../interfaces/ai-provider.interface';
-import { AiProvider } from '../../config/configuration';
+import { AiProviderName } from '../../config/ai.config';
 
 export async function fetchWithTimeout(
-  provider: AiProvider,
+  provider: AiProviderName,
   input: string,
   init: RequestInit,
   timeoutMs: number,

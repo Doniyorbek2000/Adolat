@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AppConfig } from '../../config/configuration';
+import { AiSettings } from '../../config/ai.config';
 import {
   AiCompletionRequest,
   AiCompletionResult,
@@ -19,7 +19,7 @@ export class GeminiProvider implements AiProviderClient {
   private readonly apiKey: string;
   private readonly model: string;
 
-  constructor(private readonly configService: ConfigService<AppConfig, true>) {
+  constructor(private readonly configService: ConfigService<{ ai: AiSettings }, true>) {
     const ai = this.configService.get('ai', { infer: true });
     this.apiKey = ai.gemini.apiKey;
     this.model = ai.gemini.model;

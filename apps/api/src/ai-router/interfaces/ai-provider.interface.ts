@@ -1,4 +1,4 @@
-import { AiProvider } from '../../config/configuration';
+import { AiProviderName } from '../../config/ai.config';
 
 export interface AiChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -16,7 +16,7 @@ export interface AiCompletionRequest {
 }
 
 export interface AiCompletionResult {
-  provider: AiProvider;
+  provider: AiProviderName;
   model: string;
   content: string;
   promptTokens: number;
@@ -27,14 +27,14 @@ export interface AiCompletionResult {
 }
 
 export interface AiProviderClient {
-  readonly provider: AiProvider;
+  readonly provider: AiProviderName;
   readonly isConfigured: boolean;
   complete(request: AiCompletionRequest, timeoutMs: number): Promise<AiCompletionResult>;
 }
 
 export class AiProviderError extends Error {
   constructor(
-    public readonly provider: AiProvider,
+    public readonly provider: AiProviderName,
     message: string,
     public readonly cause?: unknown,
   ) {

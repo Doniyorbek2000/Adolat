@@ -1,17 +1,15 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { HealthService, HealthStatus } from './health.service';
 
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
+  constructor(private readonly healthService: HealthService) {}
+
   @Get()
   @ApiOperation({ summary: 'Service liveness/readiness check' })
-  check() {
-    return {
-      status: 'ok',
-      service: 'adolat-ai-api',
-      uptimeSeconds: Math.round(process.uptime()),
-      timestamp: new Date().toISOString(),
-    };
+  check(): HealthStatus {
+    return this.healthService.check();
   }
 }
