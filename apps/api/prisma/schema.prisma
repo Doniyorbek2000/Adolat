@@ -1,0 +1,835 @@
+// Adolat AI — Prisma schema
+// PostgreSQL. Har jadvalda UUID PK, created_at/updated_at, kerak bo'lsa deleted_at (soft delete).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Language {
+  UZ
+  RU
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  BLOCKED
+  DELETED
+}
+
+enum AuthProvider {
+  PHONE
+  EMAIL
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum PaymentProvider {
+  CLICK
+  PAYME
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  CANCELED
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum DocumentAnalysisStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum GeneratedDocumentStatus {
+  DRAFT
+  GENERATED
+  EXPORTED
+}
+
+enum LegalSourceName {
+  LEX_UZ
+  SOLIQ_UZ
+  MY_GOV_UZ
+  PRESIDENT_UZ
+  GOV_UZ
+  ADLIYA_UZ
+  CBU_UZ
+  KADASTR_UZ
+  CUSTOMS_UZ
+  COURTS_UZ
+  MINISTRY_OTHER
+}
+
+enum SyncJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum NotificationType {
+  SUBSCRIPTION_EXPIRING
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  SUPPORT_REPLY
+  NEW_FEATURE
+  ADMIN_MESSAGE
+  SYSTEM_ALERT
+}
+
+enum SupportCategory {
+  PAYMENT_ISSUE
+  AI_QUALITY
+  DOCUMENT_ANALYSIS
+  LOGIN_ISSUE
+  SUGGESTION
+  OTHER
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum AiProviderName {
+  OPENAI
+  GEMINI
+  CLAUDE
+}
+
+// ============================================================
+// IDENTITY & ACCESS
+// ============================================================
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id            String       @id @default(uuid()) @db.Uuid
+  phone         String?      @unique
+  email         String?      @unique
+  passwordHash  String       @map("password_hash")
+  authProvider  AuthProvider @map("auth_provider")
+  language      Language     @default(UZ)
+  status        UserStatus   @default(PENDING)
+  isTwoFaEnabled Boolean     @default(false) @map("is_two_fa_enabled")
+  metadata      Json?        @db.JsonB
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  deletedAt     DateTime?    @map("deleted_at")
+
+  profile             UserProfile?
+  roles               UserRole[]
+  sessions            Session[]
+  refreshTokens       RefreshToken[]
+  otpCodes            OtpCode[]
+  passwordResetTokens PasswordResetToken[]
+  subscriptions       Subscription[]
+  usageCounters       UsageCounter[]
+  promoRedemptions    PromoRedemption[]
+  invoices            Invoice[]
+  payments            Payment[]
+  chatThreads         ChatThread[]
+  voiceSessions       VoiceSession[]
+  uploadedFiles       UploadedFile[]
+  documentAnalyses    DocumentAnalysis[]
+  generatedDocuments  GeneratedDocument[]
+  bookmarks           Bookmark[]
+  notifications       Notification[]
+  supportTickets      SupportTicket[]
+  supportMessages     SupportMessage[]
+  auditLogs           AuditLog[]
+  adminActions        AdminAction[]
+  deviceFingerprints  DeviceFingerprint[]
+  feedback            UserFeedback[]
+  aiRequests          AiRequest[]
+
+  @@index([status])
+  @@map("users")
+}
+
+model UserProfile {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  firstName String?  @map("first_name")
+  lastName  String?  @map("last_name")
+  avatarUrl String?  @map("avatar_url")
+  region    String?
+  metadata  Json?    @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model UserRole {
+  userId String @map("user_id") @db.Uuid
+  roleId String @map("role_id") @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model Session {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  deviceId     String?   @map("device_id")
+  ipAddress    String?   @map("ip_address")
+  userAgent    String?   @map("user_agent")
+  isActive     Boolean   @default(true) @map("is_active")
+  lastSeenAt   DateTime  @default(now()) @map("last_seen_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  revokedAt    DateTime? @map("revoked_at")
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  sessionId String?   @map("session_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model OtpCode {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  codeHash    String    @map("code_hash")
+  purpose     String    @default("REGISTER_VERIFY")
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5) @map("max_attempts")
+  expiresAt   DateTime  @map("expires_at")
+  consumedAt  DateTime? @map("consumed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("otp_codes")
+}
+
+model PasswordResetToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+model DeviceFingerprint {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  deviceId   String   @map("device_id")
+  platform   String?
+  appVersion String?  @map("app_version")
+  pushToken  String?  @map("push_token")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+  @@map("device_fingerprints")
+}
+
+// ============================================================
+// SUBSCRIPTIONS, USAGE, PAYMENTS
+// ============================================================
+
+model SubscriptionPlan {
+  id                    String   @id @default(uuid()) @db.Uuid
+  code                  String   @unique
+  name                  String
+  description           String?
+  priceUzs              Int      @map("price_uzs")
+  billingPeriodDays     Int      @default(30) @map("billing_period_days")
+  questionsLimit        Int      @map("questions_limit")
+  documentAnalysisLimit Int      @map("document_analysis_limit")
+  documentGeneratorLimit Int     @map("document_generator_limit")
+  voiceMinutesLimit     Int      @map("voice_minutes_limit")
+  maxFileSizeMb         Int      @map("max_file_size_mb")
+  exportEnabled         Boolean  @default(true) @map("export_enabled")
+  prioritySupport       Boolean  @default(false) @map("priority_support")
+  isActive              Boolean  @default(true) @map("is_active")
+  metadata              Json?    @db.JsonB
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  subscriptions Subscription[]
+  invoices      Invoice[]
+
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id            String             @id @default(uuid()) @db.Uuid
+  userId        String             @map("user_id") @db.Uuid
+  planId        String             @map("plan_id") @db.Uuid
+  status        SubscriptionStatus @default(TRIALING)
+  currentPeriodStart DateTime      @map("current_period_start")
+  currentPeriodEnd   DateTime      @map("current_period_end")
+  cancelAtPeriodEnd  Boolean       @default(false) @map("cancel_at_period_end")
+  metadata      Json?              @db.JsonB
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan          SubscriptionPlan @relation(fields: [planId], references: [id])
+  usageCounters UsageCounter[]
+
+  @@index([userId, status])
+  @@map("subscriptions")
+}
+
+model UsageCounter {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  subscriptionId  String?  @map("subscription_id") @db.Uuid
+  periodStart     DateTime @map("period_start")
+  periodEnd       DateTime @map("period_end")
+  questionsUsed   Int      @default(0) @map("questions_used")
+  analysesUsed    Int      @default(0) @map("analyses_used")
+  documentsUsed   Int      @default(0) @map("documents_used")
+  voiceSecondsUsed Int     @default(0) @map("voice_seconds_used")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, periodStart])
+  @@map("usage_counters")
+}
+
+model PromoCode {
+  id              String    @id @default(uuid()) @db.Uuid
+  code            String    @unique
+  discountPercent Int?      @map("discount_percent")
+  discountUzs     Int?      @map("discount_uzs")
+  maxRedemptions  Int?      @map("max_redemptions")
+  expiresAt       DateTime? @map("expires_at")
+  isActive        Boolean   @default(true) @map("is_active")
+  metadata        Json?     @db.JsonB
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  redemptions PromoRedemption[]
+
+  @@map("promo_codes")
+}
+
+model PromoRedemption {
+  id          String   @id @default(uuid()) @db.Uuid
+  promoCodeId String   @map("promo_code_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  redeemedAt  DateTime @default(now()) @map("redeemed_at")
+
+  promoCode PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([promoCodeId, userId])
+  @@map("promo_redemptions")
+}
+
+model Invoice {
+  id          String        @id @default(uuid()) @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  planId      String?       @map("plan_id") @db.Uuid
+  amountUzs   Int           @map("amount_uzs")
+  status      InvoiceStatus @default(DRAFT)
+  dueAt       DateTime?     @map("due_at")
+  metadata    Json?         @db.JsonB
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan     SubscriptionPlan? @relation(fields: [planId], references: [id])
+  payments Payment[]
+
+  @@index([userId, status])
+  @@map("invoices")
+}
+
+model Payment {
+  id           String          @id @default(uuid()) @db.Uuid
+  userId       String          @map("user_id") @db.Uuid
+  invoiceId    String?         @map("invoice_id") @db.Uuid
+  provider     PaymentProvider
+  providerTxId String?         @map("provider_tx_id")
+  amountUzs    Int             @map("amount_uzs")
+  status       PaymentStatus   @default(PENDING)
+  failureReason String?        @map("failure_reason")
+  metadata     Json?           @db.JsonB
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoice      Invoice?              @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  webhookLogs  PaymentWebhookLog[]
+
+  @@index([userId, status])
+  @@index([provider, providerTxId])
+  @@map("payments")
+}
+
+model PaymentWebhookLog {
+  id         String          @id @default(uuid()) @db.Uuid
+  paymentId  String?         @map("payment_id") @db.Uuid
+  provider   PaymentProvider
+  rawPayload Json            @map("raw_payload") @db.JsonB
+  signatureValid Boolean     @map("signature_valid")
+  receivedAt DateTime        @default(now()) @map("received_at")
+
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@map("payment_webhook_logs")
+}
+
+// ============================================================
+// CHAT, VOICE, FILES, DOCUMENTS
+// ============================================================
+
+model ChatThread {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  title     String?
+  language  Language @default(UZ)
+  metadata  Json?    @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([userId])
+  @@map("chat_threads")
+}
+
+model ChatMessage {
+  id              String   @id @default(uuid()) @db.Uuid
+  threadId        String   @map("thread_id") @db.Uuid
+  role            ChatRole
+  content         String
+  citations       Json?    @db.JsonB
+  aiProvider      AiProviderName? @map("ai_provider")
+  aiModel         String?  @map("ai_model")
+  promptTokens    Int?     @map("prompt_tokens")
+  completionTokens Int?    @map("completion_tokens")
+  latencyMs       Int?     @map("latency_ms")
+  feedback        String?
+  metadata        Json?    @db.JsonB
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@map("chat_messages")
+}
+
+model VoiceSession {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  durationSeconds Int      @default(0) @map("duration_seconds")
+  transcript      String?
+  responseText    String?  @map("response_text")
+  audioFileUrl    String?  @map("audio_file_url")
+  language        Language @default(UZ)
+  metadata        Json?    @db.JsonB
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("voice_sessions")
+}
+
+model UploadedFile {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  storageKey   String   @map("storage_key")
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  checksum     String?
+  isScanned    Boolean  @default(false) @map("is_scanned")
+  isSafe       Boolean? @map("is_safe")
+  createdAt    DateTime @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentAnalyses DocumentAnalysis[]
+
+  @@index([userId])
+  @@map("uploaded_files")
+}
+
+model DocumentAnalysis {
+  id        String                 @id @default(uuid()) @db.Uuid
+  userId    String                 @map("user_id") @db.Uuid
+  fileId    String                 @map("file_id") @db.Uuid
+  status    DocumentAnalysisStatus @default(PENDING)
+  result    Json?                  @db.JsonB
+  language  Language               @default(UZ)
+  errorMessage String?             @map("error_message")
+  createdAt DateTime               @default(now()) @map("created_at")
+  updatedAt DateTime               @updatedAt @map("updated_at")
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  file UploadedFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("document_analyses")
+}
+
+model GeneratedDocument {
+  id           String                  @id @default(uuid()) @db.Uuid
+  userId       String                  @map("user_id") @db.Uuid
+  documentType String                  @map("document_type")
+  status       GeneratedDocumentStatus @default(DRAFT)
+  formAnswers  Json                    @map("form_answers") @db.JsonB
+  content      String?
+  language     Language                @default(UZ)
+  pdfUrl       String?                 @map("pdf_url")
+  docxUrl      String?                 @map("docx_url")
+  createdAt    DateTime                @default(now()) @map("created_at")
+  updatedAt    DateTime                @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("generated_documents")
+}
+
+model Bookmark {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entityType, entityId])
+  @@map("bookmarks")
+}
+
+// ============================================================
+// LEGAL SOURCES / RAG
+// ============================================================
+
+model LegalSource {
+  id          String          @id @default(uuid()) @db.Uuid
+  name        LegalSourceName
+  baseUrl     String          @map("base_url")
+  description String?
+  isActive    Boolean         @default(true) @map("is_active")
+  metadata    Json?           @db.JsonB
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  versions  LegalSourceVersion[]
+  syncJobs  SourceSyncJob[]
+
+  @@map("legal_sources")
+}
+
+model LegalSourceVersion {
+  id            String   @id @default(uuid()) @db.Uuid
+  sourceId      String   @map("source_id") @db.Uuid
+  documentTitle String   @map("document_title")
+  documentUrl   String   @map("document_url")
+  publishedAt   DateTime? @map("published_at")
+  fetchedAt     DateTime @default(now()) @map("fetched_at")
+  rawContentRef String?  @map("raw_content_ref")
+  metadata      Json?    @db.JsonB
+
+  source LegalSource           @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  chunks LegalSourceChunk[]
+
+  @@index([sourceId])
+  @@map("legal_source_versions")
+}
+
+model LegalSourceChunk {
+  id         String   @id @default(uuid()) @db.Uuid
+  versionId  String   @map("version_id") @db.Uuid
+  chunkIndex Int      @map("chunk_index")
+  content    String
+  articleRef String?  @map("article_ref")
+  metadata   Json?    @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  version  LegalSourceVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  embedding EmbeddingsIndex?
+
+  @@index([versionId])
+  @@map("legal_source_chunks")
+}
+
+model EmbeddingsIndex {
+  id        String   @id @default(uuid()) @db.Uuid
+  chunkId   String   @unique @map("chunk_id") @db.Uuid
+  provider  String
+  model     String
+  vectorRef String   @map("vector_ref")
+  dimensions Int     @map("dimensions")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  chunk LegalSourceChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@map("embeddings_index")
+}
+
+model SourceSyncJob {
+  id          String        @id @default(uuid()) @db.Uuid
+  sourceId    String        @map("source_id") @db.Uuid
+  status      SyncJobStatus @default(QUEUED)
+  startedAt   DateTime?     @map("started_at")
+  finishedAt  DateTime?     @map("finished_at")
+  itemsFetched Int          @default(0) @map("items_fetched")
+  errorMessage String?      @map("error_message")
+  triggeredByAdminId String? @map("triggered_by_admin_id") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  source LegalSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId, status])
+  @@map("source_sync_jobs")
+}
+
+// ============================================================
+// NOTIFICATIONS, SUPPORT, FEEDBACK
+// ============================================================
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String
+  body      String
+  isRead    Boolean          @default(false) @map("is_read")
+  metadata  Json?            @db.JsonB
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model SupportTicket {
+  id        String              @id @default(uuid()) @db.Uuid
+  userId    String              @map("user_id") @db.Uuid
+  category  SupportCategory
+  subject   String
+  status    SupportTicketStatus @default(OPEN)
+  metadata  Json?               @db.JsonB
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages SupportMessage[]
+
+  @@index([userId, status])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id           String   @id @default(uuid()) @db.Uuid
+  ticketId     String   @map("ticket_id") @db.Uuid
+  authorUserId String?  @map("author_user_id") @db.Uuid
+  isFromAdmin  Boolean  @default(false) @map("is_from_admin")
+  content      String
+  attachments  Json?    @db.JsonB
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorUser User?         @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@map("support_messages")
+}
+
+model UserFeedback {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  entityType String  @map("entity_type")
+  entityId   String  @map("entity_id") @db.Uuid
+  rating     String
+  comment    String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_feedback")
+}
+
+// ============================================================
+// AI MONITORING / AUDIT / SETTINGS
+// ============================================================
+
+model AiRequest {
+  id               String          @id @default(uuid()) @db.Uuid
+  userId           String?         @map("user_id") @db.Uuid
+  feature          String
+  language         Language
+  primaryProvider  AiProviderName  @map("primary_provider")
+  finalProvider    AiProviderName? @map("final_provider")
+  finalModel       String?         @map("final_model")
+  promptTokens     Int             @default(0) @map("prompt_tokens")
+  completionTokens Int             @default(0) @map("completion_tokens")
+  latencyMs        Int             @default(0) @map("latency_ms")
+  estimatedCostUsd Decimal         @default(0) @map("estimated_cost_usd") @db.Decimal(10, 6)
+  succeeded        Boolean
+  errorMessage     String?         @map("error_message")
+  createdAt        DateTime        @default(now()) @map("created_at")
+
+  user User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  logs AiProviderLog[]
+
+  @@index([feature, createdAt])
+  @@map("ai_requests")
+}
+
+model AiProviderLog {
+  id         String         @id @default(uuid()) @db.Uuid
+  requestId  String         @map("request_id") @db.Uuid
+  provider   AiProviderName
+  attemptNo  Int            @map("attempt_no")
+  succeeded  Boolean
+  latencyMs  Int            @map("latency_ms")
+  errorMessage String?      @map("error_message")
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  request AiRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("ai_provider_logs")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id") @db.Uuid
+  ipAddress  String?  @map("ip_address")
+  metadata   Json?    @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, action])
+  @@map("audit_logs")
+}
+
+model AdminAction {
+  id         String   @id @default(uuid()) @db.Uuid
+  adminUserId String  @map("admin_user_id") @db.Uuid
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id") @db.Uuid
+  metadata   Json?    @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  adminUser User @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
+  @@map("admin_actions")
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json     @db.JsonB
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}

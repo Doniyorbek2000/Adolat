@@ -1,0 +1,20 @@
+{
+  "name": "adolat-ai",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Adolat AI — O'zbekiston bozori uchun huquqiy AI platformasi (mobile + backend + admin)",
+  "workspaces": [
+    "apps/api",
+    "apps/admin",
+    "packages/shared"
+  ],
+  "scripts": {
+    "api:dev": "npm run start:dev --workspace=apps/api",
+    "api:build": "npm run build --workspace=apps/api",
+    "admin:dev": "npm run dev --workspace=apps/admin",
+    "admin:build": "npm run build --workspace=apps/admin"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
