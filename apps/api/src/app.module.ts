@@ -38,7 +38,7 @@ import { AiRouterModule } from './ai-router/ai-router.module';
       },
     ]),
 
-    // Database — bu bosqichda ulanish ishga tushadi, lekin schema/migratsiyalar keyingi bosqichda yoziladi.
+    // Database — Prisma + PostgreSQL (schema, migratsiyalar va seed shu bosqichda tayyorlandi).
     PrismaModule,
 
     HealthModule,

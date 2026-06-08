@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { HealthService, HealthStatus } from './health.service';
+import { DatabaseHealthStatus, HealthService, HealthStatus } from './health.service';
 
 @ApiTags('health')
 @Controller('health')
@@ -11,5 +11,11 @@ export class HealthController {
   @ApiOperation({ summary: 'Service liveness/readiness check' })
   check(): HealthStatus {
     return this.healthService.check();
+  }
+
+  @Get('db')
+  @ApiOperation({ summary: 'Database (PostgreSQL/Prisma) connection health check' })
+  checkDatabase(): Promise<DatabaseHealthStatus> {
+    return this.healthService.checkDatabase();
   }
 }

@@ -7,11 +7,21 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleInit(): Promise<void> {
     await this.$connect();
-    this.logger.log('PostgreSQL bilan ulanish o\'rnatildi (Prisma)');
+    this.logger.log("PostgreSQL bilan ulanish o'rnatildi (Prisma)");
   }
 
   async onModuleDestroy(): Promise<void> {
     await this.$disconnect();
+  }
+
+  /** Health-check uchun: bazaga oddiy so'rov yuborib, ulanish tirikligini tekshiradi. */
+  async isHealthy(): Promise<boolean> {
+    try {
+      await this.$queryRaw`SELECT 1`;
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async enableShutdownHooks(app: INestApplication): Promise<void> {

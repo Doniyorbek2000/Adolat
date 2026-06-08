@@ -1,79 +1,71 @@
 -- CreateEnum
-CREATE TYPE "Language" AS ENUM ('UZ', 'RU');
-
--- CreateEnum
 CREATE TYPE "UserStatus" AS ENUM ('PENDING', 'ACTIVE', 'BLOCKED', 'DELETED');
 
 -- CreateEnum
-CREATE TYPE "AuthProvider" AS ENUM ('PHONE', 'EMAIL');
+CREATE TYPE "Language" AS ENUM ('UZ', 'RU');
 
 -- CreateEnum
-CREATE TYPE "SubscriptionStatus" AS ENUM ('TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'EXPIRED');
+CREATE TYPE "OtpType" AS ENUM ('REGISTER', 'LOGIN', 'PASSWORD_RESET', 'TWO_FACTOR');
 
 -- CreateEnum
-CREATE TYPE "PaymentProvider" AS ENUM ('CLICK', 'PAYME');
+CREATE TYPE "SessionStatus" AS ENUM ('ACTIVE', 'REVOKED', 'EXPIRED');
 
 -- CreateEnum
-CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED');
+CREATE TYPE "PlanCode" AS ENUM ('FREE', 'ODDIY', 'PRO', 'BUSINESS', 'VIP', 'PAY_AS_YOU_GO');
 
 -- CreateEnum
-CREATE TYPE "InvoiceStatus" AS ENUM ('DRAFT', 'ISSUED', 'PAID', 'CANCELED');
+CREATE TYPE "SubscriptionStatus" AS ENUM ('ACTIVE', 'EXPIRED', 'CANCELLED', 'PENDING', 'SUSPENDED');
+
+-- CreateEnum
+CREATE TYPE "PaymentProvider" AS ENUM ('CLICK', 'PAYME', 'MANUAL');
+
+-- CreateEnum
+CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'PAID', 'FAILED', 'CANCELLED', 'REFUNDED');
+
+-- CreateEnum
+CREATE TYPE "InvoiceStatus" AS ENUM ('DRAFT', 'PENDING', 'PAID', 'EXPIRED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "PromoType" AS ENUM ('DISCOUNT', 'FREE_PLAN', 'EXTRA_USAGE');
 
 -- CreateEnum
 CREATE TYPE "ChatRole" AS ENUM ('USER', 'ASSISTANT', 'SYSTEM');
 
 -- CreateEnum
+CREATE TYPE "AiProvider" AS ENUM ('OPENAI', 'GEMINI', 'CLAUDE');
+
+-- CreateEnum
+CREATE TYPE "AiRequestStatus" AS ENUM ('SUCCESS', 'FAILED', 'TIMEOUT', 'FALLBACK_USED');
+
+-- CreateEnum
+CREATE TYPE "FileStatus" AS ENUM ('UPLOADED', 'SCANNING', 'SAFE', 'INFECTED', 'PROCESSING', 'READY', 'FAILED', 'DELETED');
+
+-- CreateEnum
 CREATE TYPE "DocumentAnalysisStatus" AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED');
 
 -- CreateEnum
-CREATE TYPE "GeneratedDocumentStatus" AS ENUM ('DRAFT', 'GENERATED', 'EXPORTED');
+CREATE TYPE "GeneratedDocumentStatus" AS ENUM ('DRAFT', 'GENERATED', 'EXPORTED', 'DELETED');
 
 -- CreateEnum
-CREATE TYPE "LegalSourceName" AS ENUM ('LEX_UZ', 'SOLIQ_UZ', 'MY_GOV_UZ', 'PRESIDENT_UZ', 'GOV_UZ', 'ADLIYA_UZ', 'CBU_UZ', 'KADASTR_UZ', 'CUSTOMS_UZ', 'COURTS_UZ', 'MINISTRY_OTHER');
+CREATE TYPE "LegalSourceType" AS ENUM ('LEGAL', 'TAX', 'GOVERNMENT_SERVICE', 'PRESIDENT', 'GOVERNMENT', 'JUSTICE', 'CENTRAL_BANK', 'CADASTRE', 'CUSTOMS', 'COURT', 'MINISTRY', 'OTHER_OFFICIAL');
 
 -- CreateEnum
-CREATE TYPE "SyncJobStatus" AS ENUM ('QUEUED', 'RUNNING', 'SUCCEEDED', 'FAILED');
+CREATE TYPE "LegalSourceStatus" AS ENUM ('ACTIVE', 'DISABLED', 'FAILED');
 
 -- CreateEnum
-CREATE TYPE "NotificationType" AS ENUM ('SUBSCRIPTION_EXPIRING', 'PAYMENT_SUCCESS', 'PAYMENT_FAILED', 'SUPPORT_REPLY', 'NEW_FEATURE', 'ADMIN_MESSAGE', 'SYSTEM_ALERT');
+CREATE TYPE "SyncJobStatus" AS ENUM ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED');
 
 -- CreateEnum
-CREATE TYPE "SupportCategory" AS ENUM ('PAYMENT_ISSUE', 'AI_QUALITY', 'DOCUMENT_ANALYSIS', 'LOGIN_ISSUE', 'SUGGESTION', 'OTHER');
+CREATE TYPE "SupportTicketStatus" AS ENUM ('OPEN', 'IN_PROGRESS', 'WAITING_USER', 'RESOLVED', 'CLOSED');
 
 -- CreateEnum
-CREATE TYPE "SupportTicketStatus" AS ENUM ('OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED');
+CREATE TYPE "SupportPriority" AS ENUM ('LOW', 'NORMAL', 'HIGH', 'URGENT');
 
 -- CreateEnum
-CREATE TYPE "AiProviderName" AS ENUM ('OPENAI', 'GEMINI', 'CLAUDE');
+CREATE TYPE "NotificationType" AS ENUM ('SYSTEM', 'PAYMENT', 'SUBSCRIPTION', 'SUPPORT', 'SECURITY', 'PROMO');
 
--- CreateTable
-CREATE TABLE "roles" (
-    "id" UUID NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "roles_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "permissions" (
-    "id" UUID NOT NULL,
-    "code" TEXT NOT NULL,
-    "description" TEXT,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "permissions_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "role_permissions" (
-    "role_id" UUID NOT NULL,
-    "permission_id" UUID NOT NULL,
-
-    CONSTRAINT "role_permissions_pkey" PRIMARY KEY ("role_id","permission_id")
-);
+-- CreateEnum
+CREATE TYPE "AuditAction" AS ENUM ('CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', 'BLOCK', 'UNBLOCK', 'PAYMENT', 'EXPORT', 'AI_REQUEST', 'FILE_UPLOAD', 'SYSTEM');
 
 -- CreateTable
 CREATE TABLE "users" (
@@ -81,10 +73,10 @@ CREATE TABLE "users" (
     "phone" TEXT,
     "email" TEXT,
     "password_hash" TEXT NOT NULL,
-    "auth_provider" "AuthProvider" NOT NULL,
     "language" "Language" NOT NULL DEFAULT 'UZ',
     "status" "UserStatus" NOT NULL DEFAULT 'PENDING',
     "is_two_fa_enabled" BOOLEAN NOT NULL DEFAULT false,
+    "last_login_at" TIMESTAMP(3),
     "metadata" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -109,22 +101,53 @@ CREATE TABLE "user_profiles" (
 );
 
 -- CreateTable
+CREATE TABLE "roles" (
+    "id" UUID NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "roles_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "permissions" (
+    "id" UUID NOT NULL,
+    "code" TEXT NOT NULL,
+    "description" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "permissions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "user_roles" (
     "user_id" UUID NOT NULL,
     "role_id" UUID NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "user_roles_pkey" PRIMARY KEY ("user_id","role_id")
+);
+
+-- CreateTable
+CREATE TABLE "role_permissions" (
+    "role_id" UUID NOT NULL,
+    "permission_id" UUID NOT NULL,
+
+    CONSTRAINT "role_permissions_pkey" PRIMARY KEY ("role_id","permission_id")
 );
 
 -- CreateTable
 CREATE TABLE "sessions" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
+    "status" "SessionStatus" NOT NULL DEFAULT 'ACTIVE',
     "device_id" TEXT,
     "ip_address" TEXT,
     "user_agent" TEXT,
-    "is_active" BOOLEAN NOT NULL DEFAULT true,
     "last_seen_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expires_at" TIMESTAMP(3) NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "revoked_at" TIMESTAMP(3),
 
@@ -148,8 +171,8 @@ CREATE TABLE "refresh_tokens" (
 CREATE TABLE "otp_codes" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
+    "type" "OtpType" NOT NULL,
     "code_hash" TEXT NOT NULL,
-    "purpose" TEXT NOT NULL DEFAULT 'REGISTER_VERIFY',
     "attempts" INTEGER NOT NULL DEFAULT 0,
     "max_attempts" INTEGER NOT NULL DEFAULT 5,
     "expires_at" TIMESTAMP(3) NOT NULL,
@@ -188,14 +211,14 @@ CREATE TABLE "device_fingerprints" (
 -- CreateTable
 CREATE TABLE "subscription_plans" (
     "id" UUID NOT NULL,
-    "code" TEXT NOT NULL,
+    "code" "PlanCode" NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
-    "price_uzs" INTEGER NOT NULL,
+    "price_uzs" DECIMAL(14,2) NOT NULL,
     "billing_period_days" INTEGER NOT NULL DEFAULT 30,
-    "questions_limit" INTEGER NOT NULL,
+    "question_limit" INTEGER NOT NULL,
     "document_analysis_limit" INTEGER NOT NULL,
-    "document_generator_limit" INTEGER NOT NULL,
+    "generated_document_limit" INTEGER NOT NULL,
     "voice_minutes_limit" INTEGER NOT NULL,
     "max_file_size_mb" INTEGER NOT NULL,
     "export_enabled" BOOLEAN NOT NULL DEFAULT true,
@@ -213,10 +236,12 @@ CREATE TABLE "subscriptions" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
     "plan_id" UUID NOT NULL,
-    "status" "SubscriptionStatus" NOT NULL DEFAULT 'TRIALING',
+    "status" "SubscriptionStatus" NOT NULL DEFAULT 'PENDING',
+    "started_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "current_period_start" TIMESTAMP(3) NOT NULL,
     "current_period_end" TIMESTAMP(3) NOT NULL,
     "cancel_at_period_end" BOOLEAN NOT NULL DEFAULT false,
+    "auto_renew" BOOLEAN NOT NULL DEFAULT true,
     "metadata" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -245,11 +270,16 @@ CREATE TABLE "usage_counters" (
 CREATE TABLE "promo_codes" (
     "id" UUID NOT NULL,
     "code" TEXT NOT NULL,
+    "type" "PromoType" NOT NULL,
     "discount_percent" INTEGER,
-    "discount_uzs" INTEGER,
+    "discount_uzs" DECIMAL(14,2),
+    "free_plan_code" "PlanCode",
+    "extra_usage_amount" INTEGER,
     "max_redemptions" INTEGER,
+    "per_user_limit" INTEGER NOT NULL DEFAULT 1,
     "expires_at" TIMESTAMP(3),
     "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_by_id" UUID,
     "metadata" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -270,10 +300,12 @@ CREATE TABLE "promo_redemptions" (
 CREATE TABLE "invoices" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
+    "subscription_id" UUID,
     "plan_id" UUID,
-    "amount_uzs" INTEGER NOT NULL,
+    "amount_uzs" DECIMAL(14,2) NOT NULL,
     "status" "InvoiceStatus" NOT NULL DEFAULT 'DRAFT',
     "due_at" TIMESTAMP(3),
+    "paid_at" TIMESTAMP(3),
     "metadata" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -288,9 +320,10 @@ CREATE TABLE "payments" (
     "invoice_id" UUID,
     "provider" "PaymentProvider" NOT NULL,
     "provider_tx_id" TEXT,
-    "amount_uzs" INTEGER NOT NULL,
+    "amount_uzs" DECIMAL(14,2) NOT NULL,
     "status" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
     "failure_reason" TEXT,
+    "paid_at" TIMESTAMP(3),
     "metadata" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -316,6 +349,7 @@ CREATE TABLE "chat_threads" (
     "user_id" UUID NOT NULL,
     "title" TEXT,
     "language" "Language" NOT NULL DEFAULT 'UZ',
+    "is_archived" BOOLEAN NOT NULL DEFAULT false,
     "metadata" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -328,19 +362,40 @@ CREATE TABLE "chat_threads" (
 CREATE TABLE "chat_messages" (
     "id" UUID NOT NULL,
     "thread_id" UUID NOT NULL,
+    "user_id" UUID NOT NULL,
     "role" "ChatRole" NOT NULL,
     "content" TEXT NOT NULL,
     "citations" JSONB,
-    "ai_provider" "AiProviderName",
+    "ai_provider" "AiProvider",
     "ai_model" TEXT,
     "prompt_tokens" INTEGER,
     "completion_tokens" INTEGER,
     "latency_ms" INTEGER,
-    "feedback" TEXT,
     "metadata" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "chat_messages_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ai_requests" (
+    "id" UUID NOT NULL,
+    "user_id" UUID,
+    "feature" TEXT NOT NULL,
+    "language" "Language" NOT NULL,
+    "primary_provider" "AiProvider" NOT NULL,
+    "final_provider" "AiProvider",
+    "final_model" TEXT,
+    "status" "AiRequestStatus" NOT NULL,
+    "prompt_tokens" INTEGER NOT NULL DEFAULT 0,
+    "completion_tokens" INTEGER NOT NULL DEFAULT 0,
+    "latency_ms" INTEGER NOT NULL DEFAULT 0,
+    "estimated_cost_usd" DECIMAL(10,6) NOT NULL DEFAULT 0,
+    "fallback_chain" JSONB,
+    "error_message" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ai_requests_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -367,8 +422,8 @@ CREATE TABLE "uploaded_files" (
     "mime_type" TEXT NOT NULL,
     "size_bytes" INTEGER NOT NULL,
     "checksum" TEXT,
-    "is_scanned" BOOLEAN NOT NULL DEFAULT false,
-    "is_safe" BOOLEAN,
+    "status" "FileStatus" NOT NULL DEFAULT 'UPLOADED',
+    "metadata" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deleted_at" TIMESTAMP(3),
 
@@ -382,6 +437,7 @@ CREATE TABLE "document_analyses" (
     "file_id" UUID NOT NULL,
     "status" "DocumentAnalysisStatus" NOT NULL DEFAULT 'PENDING',
     "result" JSONB,
+    "summary" TEXT,
     "language" "Language" NOT NULL DEFAULT 'UZ',
     "error_message" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -399,8 +455,8 @@ CREATE TABLE "generated_documents" (
     "form_answers" JSONB NOT NULL,
     "content" TEXT,
     "language" "Language" NOT NULL DEFAULT 'UZ',
-    "pdf_url" TEXT,
-    "docx_url" TEXT,
+    "pdf_file_id" UUID,
+    "docx_file_id" UUID,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -421,10 +477,13 @@ CREATE TABLE "bookmarks" (
 -- CreateTable
 CREATE TABLE "legal_sources" (
     "id" UUID NOT NULL,
-    "name" "LegalSourceName" NOT NULL,
+    "name" TEXT NOT NULL,
+    "type" "LegalSourceType" NOT NULL,
     "base_url" TEXT NOT NULL,
     "description" TEXT,
-    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "status" "LegalSourceStatus" NOT NULL DEFAULT 'ACTIVE',
+    "sync_interval_hours" INTEGER NOT NULL DEFAULT 24,
+    "last_synced_at" TIMESTAMP(3),
     "metadata" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -440,6 +499,7 @@ CREATE TABLE "legal_source_versions" (
     "document_url" TEXT NOT NULL,
     "published_at" TIMESTAMP(3),
     "fetched_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "content_hash" TEXT,
     "raw_content_ref" TEXT,
     "metadata" JSONB,
 
@@ -453,6 +513,7 @@ CREATE TABLE "legal_source_chunks" (
     "chunk_index" INTEGER NOT NULL,
     "content" TEXT NOT NULL,
     "article_ref" TEXT,
+    "embedding_ref" TEXT,
     "metadata" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -460,28 +521,15 @@ CREATE TABLE "legal_source_chunks" (
 );
 
 -- CreateTable
-CREATE TABLE "embeddings_index" (
-    "id" UUID NOT NULL,
-    "chunk_id" UUID NOT NULL,
-    "provider" TEXT NOT NULL,
-    "model" TEXT NOT NULL,
-    "vector_ref" TEXT NOT NULL,
-    "dimensions" INTEGER NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "embeddings_index_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "source_sync_jobs" (
     "id" UUID NOT NULL,
     "source_id" UUID NOT NULL,
-    "status" "SyncJobStatus" NOT NULL DEFAULT 'QUEUED',
+    "status" "SyncJobStatus" NOT NULL DEFAULT 'PENDING',
+    "triggered_by_admin_id" UUID,
     "started_at" TIMESTAMP(3),
     "finished_at" TIMESTAMP(3),
     "items_fetched" INTEGER NOT NULL DEFAULT 0,
     "error_message" TEXT,
-    "triggered_by_admin_id" UUID,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "source_sync_jobs_pkey" PRIMARY KEY ("id")
@@ -495,6 +543,7 @@ CREATE TABLE "notifications" (
     "title" TEXT NOT NULL,
     "body" TEXT NOT NULL,
     "is_read" BOOLEAN NOT NULL DEFAULT false,
+    "read_at" TIMESTAMP(3),
     "metadata" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -505,12 +554,15 @@ CREATE TABLE "notifications" (
 CREATE TABLE "support_tickets" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
-    "category" "SupportCategory" NOT NULL,
+    "assigned_admin_id" UUID,
     "subject" TEXT NOT NULL,
+    "category" TEXT,
+    "priority" "SupportPriority" NOT NULL DEFAULT 'NORMAL',
     "status" "SupportTicketStatus" NOT NULL DEFAULT 'OPEN',
     "metadata" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "closed_at" TIMESTAMP(3),
 
     CONSTRAINT "support_tickets_pkey" PRIMARY KEY ("id")
 );
@@ -519,8 +571,8 @@ CREATE TABLE "support_tickets" (
 CREATE TABLE "support_messages" (
     "id" UUID NOT NULL,
     "ticket_id" UUID NOT NULL,
-    "author_user_id" UUID,
-    "is_from_admin" BOOLEAN NOT NULL DEFAULT false,
+    "sender_user_id" UUID,
+    "sender_admin_id" UUID,
     "content" TEXT NOT NULL,
     "attachments" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -529,60 +581,15 @@ CREATE TABLE "support_messages" (
 );
 
 -- CreateTable
-CREATE TABLE "user_feedback" (
-    "id" UUID NOT NULL,
-    "user_id" UUID NOT NULL,
-    "entity_type" TEXT NOT NULL,
-    "entity_id" UUID NOT NULL,
-    "rating" TEXT NOT NULL,
-    "comment" TEXT,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "user_feedback_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "ai_requests" (
-    "id" UUID NOT NULL,
-    "user_id" UUID,
-    "feature" TEXT NOT NULL,
-    "language" "Language" NOT NULL,
-    "primary_provider" "AiProviderName" NOT NULL,
-    "final_provider" "AiProviderName",
-    "final_model" TEXT,
-    "prompt_tokens" INTEGER NOT NULL DEFAULT 0,
-    "completion_tokens" INTEGER NOT NULL DEFAULT 0,
-    "latency_ms" INTEGER NOT NULL DEFAULT 0,
-    "estimated_cost_usd" DECIMAL(10,6) NOT NULL DEFAULT 0,
-    "succeeded" BOOLEAN NOT NULL,
-    "error_message" TEXT,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "ai_requests_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "ai_provider_logs" (
-    "id" UUID NOT NULL,
-    "request_id" UUID NOT NULL,
-    "provider" "AiProviderName" NOT NULL,
-    "attempt_no" INTEGER NOT NULL,
-    "succeeded" BOOLEAN NOT NULL,
-    "latency_ms" INTEGER NOT NULL,
-    "error_message" TEXT,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "ai_provider_logs_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "audit_logs" (
     "id" UUID NOT NULL,
     "user_id" UUID,
-    "action" TEXT NOT NULL,
+    "admin_id" UUID,
+    "action" "AuditAction" NOT NULL,
     "entity_type" TEXT,
     "entity_id" UUID,
     "ip_address" TEXT,
+    "user_agent" TEXT,
     "metadata" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -592,7 +599,7 @@ CREATE TABLE "audit_logs" (
 -- CreateTable
 CREATE TABLE "admin_actions" (
     "id" UUID NOT NULL,
-    "admin_user_id" UUID NOT NULL,
+    "admin_id" UUID NOT NULL,
     "action" TEXT NOT NULL,
     "entity_type" TEXT,
     "entity_id" UUID,
@@ -606,16 +613,25 @@ CREATE TABLE "admin_actions" (
 CREATE TABLE "system_settings" (
     "key" TEXT NOT NULL,
     "value" JSONB NOT NULL,
+    "description" TEXT,
+    "updated_by_id" UUID,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "system_settings_pkey" PRIMARY KEY ("key")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "roles_name_key" ON "roles"("name");
+-- CreateTable
+CREATE TABLE "user_feedback" (
+    "id" UUID NOT NULL,
+    "user_id" UUID NOT NULL,
+    "entity_type" TEXT NOT NULL,
+    "entity_id" UUID NOT NULL,
+    "rating" INTEGER NOT NULL,
+    "comment" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
--- CreateIndex
-CREATE UNIQUE INDEX "permissions_code_key" ON "permissions"("code");
+    CONSTRAINT "user_feedback_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_phone_key" ON "users"("phone");
@@ -630,7 +646,13 @@ CREATE INDEX "users_status_idx" ON "users"("status");
 CREATE UNIQUE INDEX "user_profiles_user_id_key" ON "user_profiles"("user_id");
 
 -- CreateIndex
-CREATE INDEX "sessions_user_id_idx" ON "sessions"("user_id");
+CREATE UNIQUE INDEX "roles_name_key" ON "roles"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "permissions_code_key" ON "permissions"("code");
+
+-- CreateIndex
+CREATE INDEX "sessions_user_id_status_idx" ON "sessions"("user_id", "status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "refresh_tokens_token_hash_key" ON "refresh_tokens"("token_hash");
@@ -639,7 +661,7 @@ CREATE UNIQUE INDEX "refresh_tokens_token_hash_key" ON "refresh_tokens"("token_h
 CREATE INDEX "refresh_tokens_user_id_idx" ON "refresh_tokens"("user_id");
 
 -- CreateIndex
-CREATE INDEX "otp_codes_user_id_purpose_idx" ON "otp_codes"("user_id", "purpose");
+CREATE INDEX "otp_codes_user_id_type_idx" ON "otp_codes"("user_id", "type");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "password_reset_tokens_token_hash_key" ON "password_reset_tokens"("token_hash");
@@ -672,10 +694,19 @@ CREATE INDEX "payments_user_id_status_idx" ON "payments"("user_id", "status");
 CREATE INDEX "payments_provider_provider_tx_id_idx" ON "payments"("provider", "provider_tx_id");
 
 -- CreateIndex
+CREATE INDEX "payment_webhook_logs_payment_id_idx" ON "payment_webhook_logs"("payment_id");
+
+-- CreateIndex
 CREATE INDEX "chat_threads_user_id_idx" ON "chat_threads"("user_id");
 
 -- CreateIndex
 CREATE INDEX "chat_messages_thread_id_idx" ON "chat_messages"("thread_id");
+
+-- CreateIndex
+CREATE INDEX "ai_requests_feature_created_at_idx" ON "ai_requests"("feature", "created_at");
+
+-- CreateIndex
+CREATE INDEX "ai_requests_user_id_idx" ON "ai_requests"("user_id");
 
 -- CreateIndex
 CREATE INDEX "voice_sessions_user_id_idx" ON "voice_sessions"("user_id");
@@ -699,9 +730,6 @@ CREATE INDEX "legal_source_versions_source_id_idx" ON "legal_source_versions"("s
 CREATE INDEX "legal_source_chunks_version_id_idx" ON "legal_source_chunks"("version_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "embeddings_index_chunk_id_key" ON "embeddings_index"("chunk_id");
-
--- CreateIndex
 CREATE INDEX "source_sync_jobs_source_id_status_idx" ON "source_sync_jobs"("source_id", "status");
 
 -- CreateIndex
@@ -711,25 +739,22 @@ CREATE INDEX "notifications_user_id_is_read_idx" ON "notifications"("user_id", "
 CREATE INDEX "support_tickets_user_id_status_idx" ON "support_tickets"("user_id", "status");
 
 -- CreateIndex
+CREATE INDEX "support_tickets_assigned_admin_id_status_idx" ON "support_tickets"("assigned_admin_id", "status");
+
+-- CreateIndex
 CREATE INDEX "support_messages_ticket_id_idx" ON "support_messages"("ticket_id");
-
--- CreateIndex
-CREATE INDEX "ai_requests_feature_created_at_idx" ON "ai_requests"("feature", "created_at");
-
--- CreateIndex
-CREATE INDEX "ai_provider_logs_request_id_idx" ON "ai_provider_logs"("request_id");
 
 -- CreateIndex
 CREATE INDEX "audit_logs_user_id_action_idx" ON "audit_logs"("user_id", "action");
 
 -- CreateIndex
-CREATE INDEX "admin_actions_admin_user_id_idx" ON "admin_actions"("admin_user_id");
+CREATE INDEX "audit_logs_admin_id_action_idx" ON "audit_logs"("admin_id", "action");
 
--- AddForeignKey
-ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- CreateIndex
+CREATE INDEX "admin_actions_admin_id_idx" ON "admin_actions"("admin_id");
 
--- AddForeignKey
-ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_permission_id_fkey" FOREIGN KEY ("permission_id") REFERENCES "permissions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- CreateIndex
+CREATE INDEX "user_feedback_user_id_idx" ON "user_feedback"("user_id");
 
 -- AddForeignKey
 ALTER TABLE "user_profiles" ADD CONSTRAINT "user_profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -739,6 +764,12 @@ ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_user_id_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_permission_id_fkey" FOREIGN KEY ("permission_id") REFERENCES "permissions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -771,6 +802,9 @@ ALTER TABLE "usage_counters" ADD CONSTRAINT "usage_counters_user_id_fkey" FOREIG
 ALTER TABLE "usage_counters" ADD CONSTRAINT "usage_counters_subscription_id_fkey" FOREIGN KEY ("subscription_id") REFERENCES "subscriptions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "promo_codes" ADD CONSTRAINT "promo_codes_created_by_id_fkey" FOREIGN KEY ("created_by_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "promo_redemptions" ADD CONSTRAINT "promo_redemptions_promo_code_id_fkey" FOREIGN KEY ("promo_code_id") REFERENCES "promo_codes"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -798,6 +832,12 @@ ALTER TABLE "chat_threads" ADD CONSTRAINT "chat_threads_user_id_fkey" FOREIGN KE
 ALTER TABLE "chat_messages" ADD CONSTRAINT "chat_messages_thread_id_fkey" FOREIGN KEY ("thread_id") REFERENCES "chat_threads"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "chat_messages" ADD CONSTRAINT "chat_messages_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ai_requests" ADD CONSTRAINT "ai_requests_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "voice_sessions" ADD CONSTRAINT "voice_sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -813,6 +853,12 @@ ALTER TABLE "document_analyses" ADD CONSTRAINT "document_analyses_file_id_fkey" 
 ALTER TABLE "generated_documents" ADD CONSTRAINT "generated_documents_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "generated_documents" ADD CONSTRAINT "generated_documents_pdf_file_id_fkey" FOREIGN KEY ("pdf_file_id") REFERENCES "uploaded_files"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "generated_documents" ADD CONSTRAINT "generated_documents_docx_file_id_fkey" FOREIGN KEY ("docx_file_id") REFERENCES "uploaded_files"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "bookmarks" ADD CONSTRAINT "bookmarks_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -820,9 +866,6 @@ ALTER TABLE "legal_source_versions" ADD CONSTRAINT "legal_source_versions_source
 
 -- AddForeignKey
 ALTER TABLE "legal_source_chunks" ADD CONSTRAINT "legal_source_chunks_version_id_fkey" FOREIGN KEY ("version_id") REFERENCES "legal_source_versions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "embeddings_index" ADD CONSTRAINT "embeddings_index_chunk_id_fkey" FOREIGN KEY ("chunk_id") REFERENCES "legal_source_chunks"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "source_sync_jobs" ADD CONSTRAINT "source_sync_jobs_source_id_fkey" FOREIGN KEY ("source_id") REFERENCES "legal_sources"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -834,22 +877,28 @@ ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_fkey" FOREIGN 
 ALTER TABLE "support_tickets" ADD CONSTRAINT "support_tickets_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "support_tickets" ADD CONSTRAINT "support_tickets_assigned_admin_id_fkey" FOREIGN KEY ("assigned_admin_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "support_messages" ADD CONSTRAINT "support_messages_ticket_id_fkey" FOREIGN KEY ("ticket_id") REFERENCES "support_tickets"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "support_messages" ADD CONSTRAINT "support_messages_author_user_id_fkey" FOREIGN KEY ("author_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "support_messages" ADD CONSTRAINT "support_messages_sender_user_id_fkey" FOREIGN KEY ("sender_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "user_feedback" ADD CONSTRAINT "user_feedback_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ai_requests" ADD CONSTRAINT "ai_requests_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ai_provider_logs" ADD CONSTRAINT "ai_provider_logs_request_id_fkey" FOREIGN KEY ("request_id") REFERENCES "ai_requests"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "support_messages" ADD CONSTRAINT "support_messages_sender_admin_id_fkey" FOREIGN KEY ("sender_admin_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "admin_actions" ADD CONSTRAINT "admin_actions_admin_user_id_fkey" FOREIGN KEY ("admin_user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "admin_actions" ADD CONSTRAINT "admin_actions_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "system_settings" ADD CONSTRAINT "system_settings_updated_by_id_fkey" FOREIGN KEY ("updated_by_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user_feedback" ADD CONSTRAINT "user_feedback_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
