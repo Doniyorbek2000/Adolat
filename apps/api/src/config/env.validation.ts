@@ -13,8 +13,12 @@ export const envValidationSchema = Joi.object({
   FRONTEND_URL: Joi.string().uri().allow('').default(''),
   ADMIN_URL: Joi.string().uri().allow('').default(''),
 
-  DATABASE_URL: Joi.string().uri({ scheme: ['postgresql', 'postgres'] }).required(),
-  REDIS_URL: Joi.string().uri({ scheme: ['redis', 'rediss'] }).required(),
+  DATABASE_URL: Joi.string()
+    .uri({ scheme: ['postgresql', 'postgres'] })
+    .required(),
+  REDIS_URL: Joi.string()
+    .uri({ scheme: ['redis', 'rediss'] })
+    .required(),
 
   JWT_ACCESS_SECRET: Joi.string().min(16).required(),
   JWT_REFRESH_SECRET: Joi.string().min(16).required(),
@@ -23,6 +27,10 @@ export const envValidationSchema = Joi.object({
 
   ARGON2_MEMORY_COST: Joi.number().default(65536),
   ARGON2_TIME_COST: Joi.number().default(3),
+
+  OTP_EXPIRES_IN_MINUTES: Joi.number().default(5),
+  OTP_MAX_ATTEMPTS: Joi.number().default(5),
+  OTP_RESEND_COOLDOWN_SECONDS: Joi.number().default(60),
 
   AI_PRIMARY_PROVIDER: Joi.string().valid('openai', 'gemini', 'claude').default('openai'),
   AI_FALLBACK_PROVIDER: Joi.string().valid('openai', 'gemini', 'claude').default('gemini'),

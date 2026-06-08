@@ -20,7 +20,10 @@ class SuccessEnvelopeDto {
 
 export function ApiSuccessResponse(model?: Type<unknown> | [Type<unknown>]): MethodDecorator {
   if (!model) {
-    return applyDecorators(ApiExtraModels(SuccessEnvelopeDto), ApiOkResponse({ schema: { allOf: [{ $ref: getSchemaPath(SuccessEnvelopeDto) }] } }));
+    return applyDecorators(
+      ApiExtraModels(SuccessEnvelopeDto),
+      ApiOkResponse({ schema: { allOf: [{ $ref: getSchemaPath(SuccessEnvelopeDto) }] } }),
+    );
   }
 
   const isArray = Array.isArray(model);

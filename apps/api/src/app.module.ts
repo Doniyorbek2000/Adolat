@@ -5,6 +5,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 
 import { ThrottlerBehindProxyGuard } from './common/guards/throttler-behind-proxy.guard';
 
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
@@ -16,6 +18,9 @@ import { envValidationSchema } from './config/env.validation';
 import { PrismaModule } from './database/prisma/prisma.module';
 import { HealthModule } from './modules/health/health.module';
 import { AiRouterModule } from './ai-router/ai-router.module';
+import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { SessionsModule } from './modules/sessions/sessions.module';
 
 @Module({
   imports: [
@@ -43,17 +48,26 @@ import { AiRouterModule } from './ai-router/ai-router.module';
 
     HealthModule,
     AiRouterModule,
+    AuditLogsModule,
+    AuthModule,
+    SessionsModule,
 
     // Keyingi bosqichlarda shu yerga qo'shiladi:
-    // AuthModule, UsersModule, SubscriptionsModule, PaymentsModule, ChatModule,
+    // UsersModule, SubscriptionsModule, PaymentsModule, ChatModule,
     // VoiceModule, FilesModule, DocumentAnalysisModule, DocumentGeneratorModule,
     // LegalSourcesModule, RagModule, NotificationsModule, SupportModule,
-    // AnalyticsModule, AuditLogsModule, AdminModule, SettingsModule, WebhooksModule
+    // AnalyticsModule, AdminModule, SettingsModule, WebhooksModule
   ],
   providers: [
     {
       provide: APP_GUARD,
       useClass: ThrottlerBehindProxyGuard,
+    },
+    // Global autentifikatsiya guard — standart holatda har bir endpoint Bearer
+    // access token talab qiladi; @Public() bilan belgilanganlar chetlab o'tiladi.
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
     },
   ],
 })

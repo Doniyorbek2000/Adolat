@@ -23,6 +23,11 @@ export interface AppSettings {
     memoryCost: number;
     timeCost: number;
   };
+  otp: {
+    expiresInMinutes: number;
+    maxAttempts: number;
+    resendCooldownSeconds: number;
+  };
 }
 
 export default registerAs(
@@ -33,7 +38,9 @@ export default registerAs(
     apiPrefix: (process.env.API_PREFIX ?? '/api/v1').replace(/^\/+/, ''),
     frontendUrl: process.env.FRONTEND_URL ?? '',
     adminUrl: process.env.ADMIN_URL ?? '',
-    corsOrigins: toList(`${process.env.FRONTEND_URL ?? ''},${process.env.ADMIN_URL ?? ''},${process.env.CORS_ORIGINS ?? ''}`),
+    corsOrigins: toList(
+      `${process.env.FRONTEND_URL ?? ''},${process.env.ADMIN_URL ?? ''},${process.env.CORS_ORIGINS ?? ''}`,
+    ),
     jwt: {
       accessSecret: process.env.JWT_ACCESS_SECRET ?? '',
       refreshSecret: process.env.JWT_REFRESH_SECRET ?? '',
@@ -43,6 +50,11 @@ export default registerAs(
     argon2: {
       memoryCost: parseInt(process.env.ARGON2_MEMORY_COST ?? '65536', 10),
       timeCost: parseInt(process.env.ARGON2_TIME_COST ?? '3', 10),
+    },
+    otp: {
+      expiresInMinutes: parseInt(process.env.OTP_EXPIRES_IN_MINUTES ?? '5', 10),
+      maxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS ?? '5', 10),
+      resendCooldownSeconds: parseInt(process.env.OTP_RESEND_COOLDOWN_SECONDS ?? '60', 10),
     },
   }),
 );
