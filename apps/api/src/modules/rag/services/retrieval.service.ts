@@ -1,21 +1,26 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { LegalSourceStatus, LegalSourceType } from '@prisma/client';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 import { EmbeddingService } from '../../ingestion/services/embedding.service';
 import { RagChunk } from '../rag.service';
 
-const SIMILARITY_THRESHOLD = 0.3;
 const TOP_K = 8;
 
 @Injectable()
 export class RetrievalService {
   private readonly logger = new Logger(RetrievalService.name);
+  private readonly similarityThreshold: number;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly embedding: EmbeddingService,
-  ) {}
+    private readonly config: ConfigService,
+  ) {
+    this.similarityThreshold = this.config.get<number>('RAG_MIN_SIMILARITY', 0.70);
+    this.logger.log(`RAG similarity threshold: ${this.similarityThreshold}`);
+  }
 
   /**
    * Retrieve the most relevant chunks for a query.
@@ -75,7 +80,7 @@ export class RetrievalService {
       }
 
       const similarity = this.embedding.cosineSimilarity(queryEmbedding, chunkEmbedding);
-      if (similarity >= SIMILARITY_THRESHOLD) {
+      if (similarity >= this.similarityThreshold) {
         scored.push({ chunk, similarity });
       }
     }
@@ -99,11 +104,12 @@ export class RetrievalService {
     queryText: string,
     sourceTypes?: LegalSourceType[],
   ): Promise<RagChunk[]> {
-    // Build search terms: split query into words and ILIKE each
+    // Extract meaningful terms (>3 chars, max 6 terms)
     const terms = queryText
       .split(/\s+/)
+      .map((t) => t.replace(/[^\wЀ-ӿЀ-ԯ]/g, ''))
       .filter((t) => t.length > 3)
-      .slice(0, 5);
+      .slice(0, 6);
 
     if (terms.length === 0) return [];
 
@@ -132,17 +138,31 @@ export class RetrievalService {
           include: { source: true },
         },
       },
-      take: TOP_K,
+      take: TOP_K * 4, // Fetch more, then re-rank by term-hit count
     });
 
-    return chunks.map((chunk) => ({
+    // Score by how many query terms appear in the chunk content
+    const lowerQuery = queryText.toLowerCase();
+    const scored = chunks
+      .map((chunk) => {
+        const lower = chunk.content.toLowerCase();
+        const hitCount = terms.filter((t) => lower.includes(t.toLowerCase())).length;
+        // Bonus if the chunk content includes the full query phrase
+        const phraseBonus = lower.includes(lowerQuery.slice(0, 40).toLowerCase()) ? 1 : 0;
+        return { chunk, score: hitCount + phraseBonus };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, TOP_K);
+
+    return scored.map(({ chunk, score }) => ({
       content: chunk.content,
       sourceName: chunk.version.source.name,
       documentTitle: chunk.version.documentTitle,
       documentUrl: chunk.version.documentUrl,
       articleRef: chunk.articleRef ?? undefined,
       publishedAt: chunk.version.publishedAt ?? undefined,
-      similarity: 0.5, // Placeholder score for full-text fallback
+      // Normalised placeholder: max possible = terms.length + 1 (phrase bonus)
+      similarity: Math.min(score / (terms.length + 1), 0.65),
     }));
   }
 }
