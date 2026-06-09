@@ -22,6 +22,20 @@ import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { ChatModule } from './modules/chat/chat.module';
+import { FilesModule } from './modules/files/files.module';
+import { DocumentAnalyzerModule } from './modules/document-analyzer/document-analyzer.module';
+import { DocumentGeneratorModule } from './modules/document-generator/document-generator.module';
+import { VoiceModule } from './modules/voice/voice.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { PromoModule } from './modules/promo/promo.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { SupportModule } from './modules/support/support.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { LegalSourcesModule } from './modules/legal-sources/legal-sources.module';
+import { IngestionModule } from './modules/ingestion/ingestion.module';
+import { RagModule } from './modules/rag/rag.module';
 
 @Module({
   imports: [
@@ -53,12 +67,24 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     AuthModule,
     SessionsModule,
     DashboardModule,
+    ChatModule,
+    FilesModule,
+    DocumentAnalyzerModule,
+    DocumentGeneratorModule,
+    VoiceModule,
 
-    // Keyingi bosqichlarda shu yerga qo'shiladi:
-    // UsersModule, SubscriptionsModule, PaymentsModule, ChatModule,
-    // VoiceModule, FilesModule, DocumentAnalysisModule, DocumentGeneratorModule,
-    // LegalSourcesModule, RagModule, NotificationsModule, SupportModule,
-    // AnalyticsModule, AdminModule, SettingsModule, WebhooksModule
+    // RAG, Legal Sources, Ingestion
+    LegalSourcesModule,
+    IngestionModule,
+    RagModule,
+
+    // Subscriptions, Payments, Promo, Notifications, Support, Admin
+    SubscriptionsModule,
+    PaymentsModule,
+    PromoModule,
+    NotificationsModule,
+    SupportModule,
+    AdminModule,
   ],
   providers: [
     {

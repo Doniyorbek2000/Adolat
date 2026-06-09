@@ -1,24 +1,82 @@
-# Adolat AI — local ishlab chiqish infratuzilmasi (PostgreSQL + Redis)
-# Ishga tushirish: docker compose -f infra/docker-compose.dev.yml up -d
+version: '3.9'
 
 services:
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
+    container_name: adolat_postgres_dev
     restart: unless-stopped
     environment:
+      POSTGRES_DB: adolat_ai
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: adolat_ai
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
+    container_name: adolat_redis_dev
     restart: unless-stopped
     ports:
-      - '6379:6379'
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: adolat_minio_dev
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_dev_data:/data
+
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+      target: development
+    container_name: adolat_api_dev
+    restart: unless-stopped
+    env_file:
+      - ../apps/api/.env
+    ports:
+      - "4000:4000"
+    volumes:
+      - ../apps/api/src:/app/src
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: npm run start:dev
+
+  admin:
+    build:
+      context: ../apps/admin
+      dockerfile: Dockerfile
+      target: development
+    container_name: adolat_admin_dev
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    ports:
+      - "3001:3001"
+    depends_on:
+      - api
 
 volumes:
-  postgres_data:
+  postgres_dev_data:
+  redis_dev_data:
+  minio_dev_data:

@@ -86,4 +86,33 @@ class LocaleKeys {
   static const daysLeft = 'days_left';
   static const noChatsYet = 'no_chats_yet';
   static const noDocumentsYet = 'no_documents_yet';
+
+  // Notifications
+  static const notifications = 'notifications';
+  static const noNotifications = 'no_notifications';
+  static const markAllRead = 'mark_all_read';
+
+  // Support
+  static const support = 'support';
+  static const newTicket = 'new_ticket';
+  static const noTickets = 'no_tickets';
+
+  // Payment
+  static const payment = 'payment';
+  static const selectPaymentMethod = 'select_payment_method';
+  static const startPayment = 'start_payment';
+  static const paymentSuccess = 'payment_success';
+  static const promoCode = 'promo_code';
+  static const applyPromo = 'apply_promo';
+
+  // Profile
+  static const profileTitle = 'profile_title';
+  static const changeLanguage = 'change_language';
+  static const changePassword = 'change_password';
+  static const aboutApp = 'about_app';
+  static const privacyPolicy = 'privacy_policy';
+  static const termsOfUse = 'terms_of_use';
+  static const logoutConfirm = 'logout_confirm';
+  static const logoutConfirmYes = 'logout_confirm_yes';
+  static const logoutConfirmNo = 'logout_confirm_no';
 }

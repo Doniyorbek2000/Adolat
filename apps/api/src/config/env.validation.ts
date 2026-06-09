@@ -68,4 +68,18 @@ export const envValidationSchema = Joi.object({
 
   ADMIN_DEFAULT_EMAIL: Joi.string().email({ tlds: false }).required(),
   ADMIN_DEFAULT_PASSWORD: Joi.string().min(8).required(),
+
+  EMBEDDINGS_PROVIDER: Joi.string().valid('openai').default('openai'),
+  EMBEDDINGS_MODEL: Joi.string().default('text-embedding-3-small'),
+
+  STT_PROVIDER: Joi.string().valid('openai').default('openai'),
+  TTS_PROVIDER: Joi.string().valid('openai').default('openai'),
+
+  FCM_SERVER_KEY: Joi.string().allow('').default(''),
+
+  MAX_FILE_SIZE_MB: Joi.number().default(50),
+  UPLOAD_DIR: Joi.string().default('./uploads'),
+
+  INGESTION_CONCURRENCY: Joi.number().default(3),
+  SYNC_INTERVAL_DEFAULT_HOURS: Joi.number().default(24),
 }).unknown(true);
