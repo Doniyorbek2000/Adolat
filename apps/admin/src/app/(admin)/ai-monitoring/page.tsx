@@ -7,42 +7,10 @@ import {
   LineChart, Line, ResponsiveContainer,
 } from 'recharts';
 import DataTable, { Column } from '../../../components/data-table';
-import { AiRequest, AiStats } from '../../../types';
+import { AiRequest } from '../../../types';
 import { fetchAiAnalytics } from '../../../services/api.service';
 
 const PIE_COLORS = ['#1A3A6C', '#2563eb', '#60a5fa', '#93c5fd'];
-
-const mockStats: AiStats = {
-  requestsByProvider: [
-    { provider: 'OpenAI', count: 1842 },
-    { provider: 'Anthropic', count: 623 },
-    { provider: 'Gemini', count: 215 },
-  ],
-  avgLatency: 1.23,
-  tokenUsage: Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    return {
-      date: d.toLocaleDateString('en', { month: 'short', day: 'numeric' }),
-      tokens: Math.floor(Math.random() * 80000) + 20000,
-    };
-  }),
-  failureRate: 2.4,
-  latencyHistogram: [
-    { bucket: '<0.5s', count: 320 },
-    { bucket: '0.5-1s', count: 940 },
-    { bucket: '1-2s', count: 1100 },
-    { bucket: '2-5s', count: 285 },
-    { bucket: '>5s', count: 35 },
-  ],
-  recentRequests: [
-    { id: 'r1', provider: 'OpenAI', model: 'gpt-4o', tokens: 1245, latency: 1.1, status: 'success', createdAt: new Date(Date.now() - 60000).toISOString() },
-    { id: 'r2', provider: 'Anthropic', model: 'claude-3-haiku', tokens: 980, latency: 0.9, status: 'success', createdAt: new Date(Date.now() - 120000).toISOString() },
-    { id: 'r3', provider: 'OpenAI', model: 'gpt-4o', tokens: 2100, latency: 2.3, status: 'success', createdAt: new Date(Date.now() - 180000).toISOString() },
-    { id: 'r4', provider: 'Gemini', model: 'gemini-pro', tokens: 450, latency: 0.5, status: 'failed', createdAt: new Date(Date.now() - 240000).toISOString() },
-    { id: 'r5', provider: 'OpenAI', model: 'gpt-4o-mini', tokens: 875, latency: 0.8, status: 'success', createdAt: new Date(Date.now() - 300000).toISOString() },
-  ],
-};
 
 const requestColumns: Column<AiRequest>[] = [
   { key: 'id', header: 'ID', render: (r) => <span className="font-mono text-xs">{r.id}</span> },
@@ -93,12 +61,88 @@ const requestColumns: Column<AiRequest>[] = [
 ];
 
 export default function AiMonitoringPage() {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['ai-analytics'],
     queryFn: fetchAiAnalytics,
   });
 
-  const stats = isError ? mockStats : data ?? mockStats;
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">AI Monitoring</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Real-time AI provider usage, latency, and token consumption
+          </p>
+        </div>
+
+        {/* Summary cards skeleton */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="h-3 bg-gray-100 rounded animate-pulse mb-2 w-20" />
+              <div className="h-6 bg-gray-100 rounded animate-pulse w-16" />
+            </div>
+          ))}
+        </div>
+
+        {/* Charts skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+              <div className="h-4 bg-gray-100 rounded animate-pulse mb-4 w-32" />
+              <div className="h-40 bg-gray-100 rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+
+        {/* Table skeleton */}
+        <div className="space-y-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">AI Monitoring</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Real-time AI provider usage, latency, and token consumption
+          </p>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+          <p className="text-red-600 font-medium">Ma&apos;lumot yuklanmadi</p>
+          <button
+            onClick={() => refetch()}
+            className="mt-3 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700"
+          >
+            Qayta urinish
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">AI Monitoring</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Real-time AI provider usage, latency, and token consumption
+          </p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
+          <p className="text-gray-500 text-sm">Ma&apos;lumotlar topilmadi</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -112,17 +156,17 @@ export default function AiMonitoringPage() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Avg Latency', value: `${stats.avgLatency.toFixed(2)}s` },
+          { label: 'Avg Latency', value: `${data.avgLatency.toFixed(2)}s` },
           {
             label: 'Total Requests',
-            value: stats.requestsByProvider
+            value: data.requestsByProvider
               .reduce((s, p) => s + p.count, 0)
               .toLocaleString(),
           },
-          { label: 'Failure Rate', value: `${stats.failureRate.toFixed(1)}%` },
+          { label: 'Failure Rate', value: `${data.failureRate.toFixed(1)}%` },
           {
             label: 'Providers',
-            value: stats.requestsByProvider.length,
+            value: data.requestsByProvider.length,
           },
         ].map((c) => (
           <div key={c.label} className="bg-white rounded-xl border border-gray-200 p-4">
@@ -139,29 +183,25 @@ export default function AiMonitoringPage() {
           <h2 className="text-sm font-semibold text-gray-700 mb-4">
             Provider Distribution
           </h2>
-          {isLoading ? (
-            <div className="h-40 flex items-center justify-center text-gray-400 text-sm">Loading...</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={stats.requestsByProvider}
-                  dataKey="count"
-                  nameKey="provider"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={70}
-                  label
-                >
-                  {stats.requestsByProvider.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={data.requestsByProvider}
+                dataKey="count"
+                nameKey="provider"
+                cx="50%"
+                cy="50%"
+                outerRadius={70}
+                label
+              >
+                {data.requestsByProvider.map((_, i) => (
+                  <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
 
         {/* Latency histogram */}
@@ -169,19 +209,15 @@ export default function AiMonitoringPage() {
           <h2 className="text-sm font-semibold text-gray-700 mb-4">
             Latency Distribution
           </h2>
-          {isLoading ? (
-            <div className="h-40 flex items-center justify-center text-gray-400 text-sm">Loading...</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={stats.latencyHistogram ?? []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="bucket" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#1A3A6C" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={data.latencyHistogram ?? []}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="bucket" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+              <Tooltip />
+              <Bar dataKey="count" fill="#1A3A6C" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
         {/* Token usage */}
@@ -189,19 +225,15 @@ export default function AiMonitoringPage() {
           <h2 className="text-sm font-semibold text-gray-700 mb-4">
             Token Usage — Last 7 Days
           </h2>
-          {isLoading ? (
-            <div className="h-40 flex items-center justify-center text-gray-400 text-sm">Loading...</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={stats.tokenUsage}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={55} />
-                <Tooltip />
-                <Line type="monotone" dataKey="tokens" stroke="#2563eb" strokeWidth={2} dot={{ r: 2 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={data.tokenUsage}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={55} />
+              <Tooltip />
+              <Line type="monotone" dataKey="tokens" stroke="#2563eb" strokeWidth={2} dot={{ r: 2 }} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
@@ -210,8 +242,8 @@ export default function AiMonitoringPage() {
         <h2 className="text-base font-semibold text-gray-700">Recent AI Requests</h2>
         <DataTable
           columns={requestColumns as Column<Record<string, unknown>>[]}
-          data={(stats.recentRequests ?? []) as unknown as Record<string, unknown>[]}
-          loading={isLoading}
+          data={(data.recentRequests ?? []) as unknown as Record<string, unknown>[]}
+          loading={false}
           emptyMessage="No recent requests."
           keyExtractor={(r) => r.id as string}
         />

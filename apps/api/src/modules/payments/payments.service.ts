@@ -129,8 +129,8 @@ export class PaymentsService {
     }
   }
 
-  async handlePaymeWebhook(payload: unknown): Promise<void> {
-    const valid = this.paymeProvider.verifyWebhook(payload);
+  async handlePaymeWebhook(payload: unknown, authorization?: string): Promise<void> {
+    const valid = this.paymeProvider.verifyWebhook(payload, authorization);
 
     await this.prisma.paymentWebhookLog.create({
       data: {

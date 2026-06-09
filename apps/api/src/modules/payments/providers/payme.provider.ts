@@ -16,10 +16,6 @@ interface PaymeRpcPayload {
   };
 }
 
-interface PaymeAuthHeader {
-  authorization?: string;
-}
-
 @Injectable()
 export class PaymeProvider implements PaymentProviderInterface {
   readonly name = PaymentProvider.PAYME;
@@ -49,12 +45,12 @@ export class PaymeProvider implements PaymentProviderInterface {
     return { url };
   }
 
-  verifyWebhook(payload: unknown, _signature?: string): boolean {
+  verifyWebhook(_payload: unknown, authorization?: string): boolean {
     try {
-      // Payme uses HTTP Basic auth: Paycom:<merchant_key>
-      const p = payload as PaymeAuthHeader;
-      const authHeader = p.authorization ?? '';
+      // Payme sends HTTP Basic auth header: "Basic base64(Paycom:<merchant_key>)"
+      const authHeader = authorization ?? '';
       if (!authHeader.startsWith('Basic ')) {
+        this.logger.warn('Payme webhook: Authorization header missing or not Basic');
         return false;
       }
       const decoded = Buffer.from(authHeader.slice(6), 'base64').toString('utf-8');

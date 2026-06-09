@@ -9,6 +9,7 @@ import {
   Post,
   Query,
   DefaultValuePipe,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -22,6 +23,9 @@ import { AuditAction, NotificationType } from '@prisma/client';
 import { IsArray, IsEnum, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 
 import { CurrentUser, RequestUser } from '../../common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { AdminAnalyticsService } from './admin-analytics.service';
 
 // ─── DTOs ───────────────────────────────────────────────────────────────────
@@ -56,6 +60,8 @@ class BulkNotificationDto {
 
 @ApiTags('admin')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN')
 @Controller('admin')
 export class AdminAnalyticsController {
   constructor(private readonly adminService: AdminAnalyticsService) {}

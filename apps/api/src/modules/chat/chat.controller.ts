@@ -8,11 +8,13 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
+  ApiProperty,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -21,6 +23,9 @@ import { CurrentUser, RequestUser } from '../../common/decorators/current-user.d
 import { AiRouterService } from '../../ai-router/ai-router.service';
 import type { AiContextItemDto } from '../../ai-router/dto/ai-context-item.dto';
 import { AnswerLanguage } from '../../ai-router/dto/generate-answer.dto';
+import { UsageGuard } from '../../common/guards/usage.guard';
+import { UsageType } from '../../common/decorators/usage-type.decorator';
+import { RagService } from '../rag/rag.service';
 
 import { ChatService } from './chat.service';
 import { CreateThreadDto } from './dto/create-thread.dto';
@@ -35,6 +40,7 @@ export class ChatController {
   constructor(
     private readonly chatService: ChatService,
     private readonly aiRouterService: AiRouterService,
+    private readonly ragService: RagService,
   ) {}
 
   // ─── Threads ──────────────────────────────────────────────────────────────
@@ -97,9 +103,12 @@ export class ChatController {
 
   @Post('threads/:id/messages')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(UsageGuard)
+  @UsageType('questionsUsed')
   @ApiOperation({ summary: 'Savolni chat mavzusiga yuborish va AI javobini olish' })
   @ApiParam({ name: 'id', description: 'Thread UUID' })
-  @ApiResponse({ status: 201, description: 'Foydalanuvchi xabari va AI javobi' })
+  @ApiResponse({ status: 201, description: 'Foydalanuvchi xabari, AI javobi va manbalar' })
+  @ApiResponse({ status: 402, description: 'Obuna limiti tugagan' })
   @ApiResponse({ status: 404, description: 'Chat mavzusi topilmadi' })
   async sendMessage(
     @CurrentUser() user: RequestUser,
@@ -117,34 +126,72 @@ export class ChatController {
       dto.language,
     );
 
-    // 3. Build context from recent thread messages (for conversational continuity)
+    // 3. RAG: qonuniy hujjatlar bazasidan kontekst qidirish
+    const lang = (dto.language as string) === 'RU' ? 'RU' : 'UZ';
+    let ragContext = await this.ragService.findContext(dto.question, lang).catch(() => null);
+
+    // 4. Build context items: RAG chunks first, then recent conversation for continuity
+    const contextItems: AiContextItemDto[] = [];
+
+    if (ragContext && ragContext.chunks.length > 0) {
+      // RAG natijalarini context sifatida qo'sh
+      for (const chunk of ragContext.chunks.slice(0, 5)) {
+        contextItems.push({
+          sourceName: chunk.sourceName,
+          title: chunk.documentTitle,
+          content: chunk.content,
+          url: chunk.documentUrl || undefined,
+        });
+      }
+    }
+
+    // Recent assistant messages for conversational continuity (max 2)
     const recentMessages = await this.chatService.getRecentMessages(threadId, 6);
-    const contextItems: AiContextItemDto[] = recentMessages
+    const conversationContext = recentMessages
       .filter((m) => m.role === 'ASSISTANT' && m.id !== userMessage.id)
-      .slice(0, 3)
+      .slice(0, 2)
       .map((m) => ({
         sourceName: 'Adolat AI',
         title: 'Oldingi javob',
-        content: m.content.slice(0, 500),
+        content: m.content.slice(0, 400),
       }));
+    contextItems.push(...conversationContext);
 
-    // 4. Call AI router
+    // 5. AI prompt: agar RAG kontekst yo'q bo'lsa ehtiyotkor javob
+    const hasLegalContext = ragContext && ragContext.hasSufficientContext;
+    const questionWithHint = hasLegalContext
+      ? dto.question
+      : `${dto.question}\n\n[ESLATMA: Hujjatlar bazasidan aniq manba topilmadi. Umumiy huquqiy bilimlar asosida ehtiyotkor javob ber.]`;
+
+    // 6. Call AI router
     const aiResult = await this.aiRouterService.generateLegalAnswer({
       userId: user.id,
-      question: dto.question,
+      question: questionWithHint,
       language: dto.language as unknown as AnswerLanguage,
-      context: contextItems,
+      context: contextItems.length > 0 ? contextItems : [
+        {
+          sourceName: 'Adolat AI',
+          title: 'Kontekst',
+          content: "Hujjatlar bazasidan tegishli manba topilmadi.",
+        },
+      ],
     });
 
-    // 5. Extract citations if present in answer (simple heuristic)
-    const citations: unknown[] = [];
+    // 7. Build sources metadata from RAG chunks
+    const sources = ragContext?.chunks.slice(0, 5).map((c) => ({
+      sourceName: c.sourceName,
+      title: c.documentTitle,
+      url: c.documentUrl,
+      articleRef: c.articleRef ?? null,
+      similarity: Math.round(c.similarity * 100) / 100,
+    })) ?? [];
 
-    // 6. Save assistant message
+    // 8. Save assistant message with citations
     const assistantMessage = await this.chatService.saveAssistantMessage(
       threadId,
       user.id,
       aiResult.answer,
-      citations,
+      sources,
       aiResult.provider,
       aiResult.model,
       0,
@@ -155,11 +202,14 @@ export class ChatController {
     return {
       userMessage,
       assistantMessage,
+      sources,
       meta: {
         provider: aiResult.provider,
         model: aiResult.model,
         latencyMs: aiResult.latencyMs,
         fallbackUsed: aiResult.fallbackUsed,
+        ragUsed: ragContext !== null && ragContext.chunks.length > 0,
+        ragChunksFound: ragContext?.chunks.length ?? 0,
       },
     };
   }

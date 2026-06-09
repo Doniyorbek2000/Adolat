@@ -53,8 +53,11 @@ export class PaymentsController {
   @Post('payme/webhook')
   @Public()
   @ApiOkResponse({ description: 'Payme webhook received' })
-  handlePaymeWebhook(@Body() payload: unknown) {
-    return this.paymentsService.handlePaymeWebhook(payload);
+  handlePaymeWebhook(
+    @Body() payload: unknown,
+    @Headers('authorization') authorization?: string,
+  ) {
+    return this.paymentsService.handlePaymeWebhook(payload, authorization);
   }
 
   @Get(':id')

@@ -151,6 +151,10 @@ export async function createLegalSource(
   return res.data;
 }
 
+export async function deleteLegalSource(id: string): Promise<void> {
+  await api.delete(`/legal-sources/${id}`);
+}
+
 // ─── Support ──────────────────────────────────────────────────────────────────
 
 export async function fetchSupportTickets(params?: {

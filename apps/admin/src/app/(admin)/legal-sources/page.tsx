@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, RefreshCw, X } from 'lucide-react';
+import { Plus, RefreshCw, X, Trash2 } from 'lucide-react';
 import DataTable, { Column } from '../../../components/data-table';
 import { LegalSource } from '../../../types';
 import {
@@ -11,23 +11,7 @@ import {
   toggleLegalSource,
   createLegalSource,
 } from '../../../services/api.service';
-
-const mockSources: LegalSource[] = [
-  {
-    id: '1', name: 'lex.uz', type: 'web', baseUrl: 'https://lex.uz',
-    status: 'active', lastSyncedAt: new Date(Date.now() - 3600000).toISOString(), chunkCount: 12450,
-  },
-  {
-    id: '2', name: "O'zbekiston Respublikasi Qonunlari", type: 'pdf',
-    baseUrl: 'https://parliament.gov.uz', status: 'active',
-    lastSyncedAt: new Date(Date.now() - 86400000).toISOString(), chunkCount: 8320,
-  },
-  {
-    id: '3', name: 'Court Decisions Database', type: 'api',
-    baseUrl: 'https://court.uz/api', status: 'inactive',
-    lastSyncedAt: null, chunkCount: 0,
-  },
-];
+import api from '../../../lib/api';
 
 const statusBadge = (status: string) => {
   const map: Record<string, string> = {
@@ -138,14 +122,15 @@ function AddSourceModal({
 export default function LegalSourcesPage() {
   const [showModal, setShowModal] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const qc = useQueryClient();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['legal-sources'],
     queryFn: fetchLegalSources,
   });
 
-  const sources = isError ? mockSources : data ?? mockSources;
+  const sources = data ?? [];
 
   const syncMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -170,6 +155,14 @@ export default function LegalSourcesPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['legal-sources'] });
       setShowModal(false);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/admin/legal-sources/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['legal-sources'] });
+      setDeleteTargetId(null);
     },
   });
 
@@ -253,10 +246,60 @@ export default function LegalSourcesPage() {
           >
             {row.status === 'active' ? 'Disable' : 'Enable'}
           </button>
+          <button
+            onClick={() => setDeleteTargetId(row.id)}
+            className="text-red-500 hover:text-red-700"
+          >
+            <Trash2 size={16} />
+          </button>
         </div>
       ),
     },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Legal Sources</h1>
+            <p className="text-gray-500 text-sm mt-1">
+              Manage knowledge base sources for the AI
+            </p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Legal Sources</h1>
+            <p className="text-gray-500 text-sm mt-1">
+              Manage knowledge base sources for the AI
+            </p>
+          </div>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+          <p className="text-red-600 font-medium">Ma&apos;lumot yuklanmadi</p>
+          <button
+            onClick={() => refetch()}
+            className="mt-3 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700"
+          >
+            Qayta urinish
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -276,13 +319,19 @@ export default function LegalSourcesPage() {
         </button>
       </div>
 
-      <DataTable
-        columns={columns as Column<Record<string, unknown>>[]}
-        data={sources as unknown as Record<string, unknown>[]}
-        loading={isLoading}
-        emptyMessage="No legal sources configured."
-        keyExtractor={(row) => row.id as string}
-      />
+      {sources.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
+          <p className="text-gray-500 text-sm">Manbalar topilmadi</p>
+        </div>
+      ) : (
+        <DataTable
+          columns={columns as Column<Record<string, unknown>>[]}
+          data={sources as unknown as Record<string, unknown>[]}
+          loading={false}
+          emptyMessage="No legal sources configured."
+          keyExtractor={(row) => row.id as string}
+        />
+      )}
 
       {showModal && (
         <AddSourceModal
@@ -290,6 +339,30 @@ export default function LegalSourcesPage() {
           onSubmit={(d) => createMutation.mutate(d)}
           loading={createMutation.isPending}
         />
+      )}
+
+      {deleteTargetId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-80 shadow-xl">
+            <h3 className="font-semibold text-gray-800 mb-2">O&apos;chirishni tasdiqlang</h3>
+            <p className="text-sm text-gray-500 mb-4">Bu manba va unga bog&apos;liq barcha ma&apos;lumotlar o&apos;chiriladi.</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteTargetId(null)}
+                className="px-4 py-2 text-sm border border-gray-200 rounded-lg"
+              >
+                Bekor
+              </button>
+              <button
+                onClick={() => deleteTargetId && deleteMutation.mutate(deleteTargetId)}
+                disabled={deleteMutation.isPending}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? 'O\'chirilmoqda...' : 'O\'chirish'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

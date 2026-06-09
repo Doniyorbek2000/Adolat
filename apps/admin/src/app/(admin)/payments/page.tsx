@@ -6,34 +6,6 @@ import DataTable, { Column } from '../../../components/data-table';
 import { Invoice } from '../../../types';
 import { fetchPayments } from '../../../services/api.service';
 
-const mockInvoices: Invoice[] = [
-  {
-    id: 'inv_001', userId: 'u1', userEmail: 'alice@example.com',
-    amount: 29.99, currency: 'USD', status: 'paid', provider: 'Payme',
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: 'inv_002', userId: 'u2', userEmail: 'bob@example.com',
-    amount: 9.99, currency: 'USD', status: 'paid', provider: 'Click',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: 'inv_003', userId: 'u3', userEmail: 'carol@example.com',
-    amount: 99.99, currency: 'USD', status: 'pending', provider: 'Stripe',
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-  },
-  {
-    id: 'inv_004', userId: 'u4', userEmail: 'dave@example.com',
-    amount: 29.99, currency: 'USD', status: 'failed', provider: 'Payme',
-    createdAt: new Date(Date.now() - 259200000).toISOString(),
-  },
-  {
-    id: 'inv_005', userId: 'u5', userEmail: 'eve@example.com',
-    amount: 9.99, currency: 'USD', status: 'refunded', provider: 'Click',
-    createdAt: new Date(Date.now() - 345600000).toISOString(),
-  },
-];
-
 const statusBadge = (status: string) => {
   const map: Record<string, string> = {
     paid: 'bg-green-100 text-green-700',
@@ -55,13 +27,13 @@ const statusBadge = (status: string) => {
 export default function PaymentsPage() {
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['payments', page],
     queryFn: () => fetchPayments({ page, limit: 20 }),
   });
 
-  const invoices = isError ? mockInvoices : data?.data ?? mockInvoices;
-  const totalPages = isError ? 1 : data?.totalPages ?? 1;
+  const invoices = data?.data ?? [];
+  const totalPages = data?.totalPages ?? 1;
 
   const columns: Column<Invoice>[] = [
     {
@@ -117,6 +89,73 @@ export default function PaymentsPage() {
     .filter((inv) => inv.status === 'paid')
     .reduce((sum, inv) => sum + inv.amount, 0);
 
+  if (isLoading) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Payments</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            All payment transactions across users
+          </p>
+        </div>
+
+        {/* Summary strip skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="h-3 bg-gray-100 rounded animate-pulse mb-2 w-20" />
+              <div className="h-6 bg-gray-100 rounded animate-pulse w-16" />
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Payments</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            All payment transactions across users
+          </p>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+          <p className="text-red-600 font-medium">Ma&apos;lumot yuklanmadi</p>
+          <button
+            onClick={() => refetch()}
+            className="mt-3 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700"
+          >
+            Qayta urinish
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (invoices.length === 0) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Payments</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            All payment transactions across users
+          </p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
+          <p className="text-gray-500 text-sm">To&apos;lovlar topilmadi</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <div>
@@ -147,7 +186,7 @@ export default function PaymentsPage() {
       <DataTable
         columns={columns as Column<Record<string, unknown>>[]}
         data={invoices as unknown as Record<string, unknown>[]}
-        loading={isLoading}
+        loading={false}
         emptyMessage="No payments found."
         keyExtractor={(row) => row.id as string}
       />

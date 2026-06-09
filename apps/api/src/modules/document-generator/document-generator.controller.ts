@@ -8,6 +8,7 @@ import {
   Param,
   Post,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -20,6 +21,8 @@ import {
 import { Response } from 'express';
 
 import { CurrentUser, RequestUser } from '../../common/decorators/current-user.decorator';
+import { UsageGuard } from '../../common/guards/usage.guard';
+import { UsageType } from '../../common/decorators/usage-type.decorator';
 import { DocumentGeneratorService } from './document-generator.service';
 import { CreateGeneratedDocumentDto } from './dto/create-generated-document.dto';
 
@@ -38,8 +41,11 @@ export class DocumentGeneratorController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(UsageGuard)
+  @UsageType('documentsUsed')
   @ApiOperation({ summary: "Yangi hujjat generatsiya qilish (AI orqali)" })
   @ApiResponse({ status: 201, description: 'Hujjat yaratildi' })
+  @ApiResponse({ status: 402, description: 'Obuna limiti tugagan' })
   create(@CurrentUser() user: RequestUser, @Body() dto: CreateGeneratedDocumentDto) {
     return this.generatorService.create(user.id, dto);
   }

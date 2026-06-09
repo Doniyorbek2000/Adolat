@@ -7,6 +7,7 @@ import {
   Post,
   Res,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -24,6 +25,8 @@ import { memoryStorage } from 'multer';
 import { Language } from '@prisma/client';
 
 import { CurrentUser, RequestUser } from '../../common/decorators/current-user.decorator';
+import { UsageGuard } from '../../common/guards/usage.guard';
+import { UsageType } from '../../common/decorators/usage-type.decorator';
 import { VoiceService } from './voice.service';
 import { TextToSpeechDto } from './dto/text-to-speech.dto';
 
@@ -72,6 +75,8 @@ export class VoiceController {
 
   @Post('ask')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(UsageGuard)
+  @UsageType('voiceSecondsUsed')
   @UseInterceptors(
     FileInterceptor('audio', {
       storage: memoryStorage(),

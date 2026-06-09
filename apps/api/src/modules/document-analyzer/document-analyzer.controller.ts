@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -17,6 +18,8 @@ import {
 } from '@nestjs/swagger';
 
 import { CurrentUser, RequestUser } from '../../common/decorators/current-user.decorator';
+import { UsageGuard } from '../../common/guards/usage.guard';
+import { UsageType } from '../../common/decorators/usage-type.decorator';
 import { DocumentAnalyzerService } from './document-analyzer.service';
 import { StartAnalysisDto } from './dto/start-analysis.dto';
 
@@ -28,10 +31,13 @@ export class DocumentAnalyzerController {
 
   @Post('analyze')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(UsageGuard)
+  @UsageType('analysesUsed')
   @ApiOperation({
     summary: 'Hujjat tahlilini boshlash (asinxron). Status PENDING holida qaytariladi.',
   })
   @ApiResponse({ status: 201, description: 'Tahlil yaratildi (PENDING)' })
+  @ApiResponse({ status: 402, description: 'Obuna limiti tugagan' })
   @ApiResponse({ status: 404, description: 'Fayl topilmadi' })
   startAnalysis(@CurrentUser() user: RequestUser, @Body() dto: StartAnalysisDto) {
     return this.analyzerService.startAnalysis(user.id, dto.fileId, dto.language);

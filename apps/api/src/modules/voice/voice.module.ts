@@ -5,6 +5,7 @@ import { memoryStorage } from 'multer';
 
 import { PrismaModule } from '../../database/prisma/prisma.module';
 import { AiRouterModule } from '../../ai-router/ai-router.module';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 
 import { VoiceService } from './voice.service';
 import { VoiceController } from './voice.controller';
@@ -14,6 +15,7 @@ import { VoiceController } from './voice.controller';
     PrismaModule,
     ConfigModule,
     AiRouterModule,
+    SubscriptionsModule,
     MulterModule.register({
       storage: memoryStorage(),
       limits: { fileSize: 25 * 1024 * 1024 },
