@@ -6,7 +6,7 @@ import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/otp_verification_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/reset_password_screen.dart';
-import '../../features/home/presentation/screens/home_placeholder_screen.dart';
+import '../../features/home/presentation/screens/main_shell_screen.dart';
 import '../../features/language/presentation/screens/language_selection_screen.dart';
 import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
@@ -68,7 +68,7 @@ class AppRoutes {
       GoRoute(
         path: '/home',
         name: RouteNames.home,
-        builder: (context, state) => const HomePlaceholderScreen(),
+        builder: (context, state) => const MainShellScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

@@ -65,4 +65,25 @@ class LocaleKeys {
   static const user = 'user';
   static const loginSuccess = 'login_success';
   static const registerSuccess = 'register_success';
+
+  // Dashboard
+  static const dashboardTitle = 'dashboard_title';
+  static const greetingMorning = 'greeting_morning';
+  static const greetingAfternoon = 'greeting_afternoon';
+  static const greetingEvening = 'greeting_evening';
+  static const usageSectionTitle = 'usage_section_title';
+  static const quickActionsSectionTitle = 'quick_actions_section_title';
+  static const recentChatsSectionTitle = 'recent_chats_section_title';
+  static const recentDocumentsSectionTitle = 'recent_documents_section_title';
+  static const seeAll = 'see_all';
+  static const askQuestion = 'ask_question';
+  static const analyzeDocument = 'analyze_document';
+  static const createApplication = 'create_application';
+  static const voiceAssistant = 'voice_assistant';
+  static const subscribe = 'subscribe';
+  static const subscriptionActive = 'subscription_active';
+  static const subscriptionNone = 'subscription_none';
+  static const daysLeft = 'days_left';
+  static const noChatsYet = 'no_chats_yet';
+  static const noDocumentsYet = 'no_documents_yet';
 }

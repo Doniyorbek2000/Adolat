@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AiProvider, AiRequestStatus, Language, Prisma } from '@prisma/client';
+
 import { AiProviderName, AiSettings } from '../config/ai.config';
 import {
   AiCompletionRequest,
@@ -10,6 +12,10 @@ import {
 import { OpenAiProvider } from './providers/openai.provider';
 import { GeminiProvider } from './providers/gemini.provider';
 import { ClaudeProvider } from './providers/claude.provider';
+import { PrismaService } from '../database/prisma/prisma.service';
+import { buildLegalSystemPrompt } from './prompts/legal-system-prompt';
+import type { AiContextItemDto } from './dto/ai-context-item.dto';
+import type { AnswerLanguage } from './dto/generate-answer.dto';
 
 export interface AiRouterAttemptLog {
   provider: AiProviderName;
@@ -22,6 +28,21 @@ export interface AiRouterResult extends AiCompletionResult {
   /** Qaysi provayderlar urinib ko'rilgani (monitoring/audit uchun) */
   attempts: AiRouterAttemptLog[];
 }
+
+export interface LegalAnswerResult {
+  answer: string;
+  provider: string;
+  model: string;
+  fallbackUsed: boolean;
+  latencyMs: number;
+}
+
+/** AiProviderName → Prisma AiProvider enum */
+const PROVIDER_ENUM_MAP: Record<AiProviderName, AiProvider> = {
+  openai: AiProvider.OPENAI,
+  gemini: AiProvider.GEMINI,
+  claude: AiProvider.CLAUDE,
+};
 
 /**
  * AI Router — OpenAI (primary), Claude va Gemini orasida avtomatik fallback zanjirini boshqaradi.
@@ -39,6 +60,7 @@ export class AiRouterService {
   private readonly retryCount: number;
 
   constructor(
+    private readonly prisma: PrismaService,
     private readonly configService: ConfigService<{ ai: AiSettings }, true>,
     openAiProvider: OpenAiProvider,
     geminiProvider: GeminiProvider,
@@ -110,6 +132,105 @@ export class AiRouterService {
       'Barcha AI provayderlar javob bera olmadi (OpenAI, Claude, Gemini). Iltimos keyinroq urinib ko\'ring.',
       attempts,
     );
+  }
+
+  /**
+   * RAG context asosida huquqiy javob generatsiya qiladi va natijani ai_requests jadvaliga
+   * yozadi. Context bo'sh bo'lsa AI chaqirilmaydi.
+   */
+  async generateLegalAnswer(input: {
+    userId?: string;
+    question: string;
+    language: AnswerLanguage;
+    context: AiContextItemDto[];
+  }): Promise<LegalAnswerResult> {
+    const primaryProvider = this.chain[0];
+    const prismaLanguage = input.language === 'UZ' ? Language.UZ : Language.RU;
+    const langCode = input.language === 'UZ' ? 'uz' : 'ru';
+
+    const contextStr = input.context
+      .map((item, i) => {
+        const lines = [`[${i + 1}] ${item.sourceName} — ${item.title}`];
+        if (item.date) lines.push(`Sana: ${item.date}`);
+        if (item.url) lines.push(`Havola: ${item.url}`);
+        lines.push(item.content);
+        return lines.join('\n');
+      })
+      .join('\n\n---\n\n');
+
+    const systemPrompt = buildLegalSystemPrompt(contextStr);
+
+    const request: AiCompletionRequest = {
+      systemPrompt,
+      messages: [{ role: 'user', content: input.question }],
+      language: langCode,
+    };
+
+    let result: AiRouterResult;
+    let status: AiRequestStatus;
+    let errorMessage: string | undefined;
+
+    try {
+      result = await this.complete(request);
+
+      const usedProviders = result.attempts.filter((a) => a.ok).map((a) => a.provider);
+      const fallbackUsed =
+        usedProviders.length > 0 && usedProviders[usedProviders.length - 1] !== primaryProvider;
+      status = fallbackUsed ? AiRequestStatus.FALLBACK_USED : AiRequestStatus.SUCCESS;
+    } catch (err) {
+      errorMessage = err instanceof Error ? err.message : 'Noma\'lum xatolik';
+      status = AiRequestStatus.FAILED;
+
+      await this.prisma.aiRequest.create({
+        data: {
+          userId: input.userId ?? null,
+          feature: 'legal_answer',
+          language: prismaLanguage,
+          primaryProvider: PROVIDER_ENUM_MAP[primaryProvider],
+          finalProvider: null,
+          finalModel: null,
+          status,
+          promptTokens: 0,
+          completionTokens: 0,
+          latencyMs: 0,
+          estimatedCostUsd: 0,
+          fallbackChain: [],
+          errorMessage,
+        },
+      });
+
+      throw err;
+    }
+
+    const successAttempt = result.attempts.find((a) => a.ok);
+    const finalProviderName = successAttempt?.provider ?? primaryProvider;
+    const fallbackUsed = finalProviderName !== primaryProvider;
+
+    await this.prisma.aiRequest.create({
+      data: {
+        userId: input.userId ?? null,
+        feature: 'legal_answer',
+        language: prismaLanguage,
+        primaryProvider: PROVIDER_ENUM_MAP[primaryProvider],
+        finalProvider: PROVIDER_ENUM_MAP[finalProviderName],
+        finalModel: result.model,
+        status,
+        promptTokens: result.promptTokens,
+        completionTokens: result.completionTokens,
+        latencyMs: result.latencyMs,
+        estimatedCostUsd: result.estimatedCostUsd,
+        fallbackChain: result.attempts as unknown as Prisma.InputJsonValue,
+        errorMessage: null,
+      },
+    });
+
+    return {
+      answer: result.content,
+      provider: result.provider,
+      model: result.model,
+      fallbackUsed,
+      latencyMs: result.latencyMs,
+    };
   }
 
   /** Admin panel uchun: har provayderning sozlanganlik holatini qaytaradi */

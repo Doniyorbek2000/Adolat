@@ -21,6 +21,7 @@ import { AiRouterModule } from './ai-router/ai-router.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { SessionsModule } from './modules/sessions/sessions.module';
     AuditLogsModule,
     AuthModule,
     SessionsModule,
+    DashboardModule,
 
     // Keyingi bosqichlarda shu yerga qo'shiladi:
     // UsersModule, SubscriptionsModule, PaymentsModule, ChatModule,

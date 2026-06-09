@@ -32,6 +32,7 @@ export const envValidationSchema = Joi.object({
   OTP_MAX_ATTEMPTS: Joi.number().default(5),
   OTP_RESEND_COOLDOWN_SECONDS: Joi.number().default(60),
 
+  AI_ENABLE_TEST_ENDPOINT: Joi.string().valid('true', 'false').default('false'),
   AI_PRIMARY_PROVIDER: Joi.string().valid('openai', 'gemini', 'claude').default('openai'),
   AI_FALLBACK_PROVIDER: Joi.string().valid('openai', 'gemini', 'claude').default('gemini'),
   AI_FALLBACK_PROVIDER_2: Joi.string().valid('openai', 'gemini', 'claude').allow('').default(''),

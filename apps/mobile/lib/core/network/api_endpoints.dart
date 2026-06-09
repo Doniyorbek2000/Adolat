@@ -9,4 +9,5 @@ class ApiEndpoints {
   static const String authResetPassword = '/auth/reset-password';
   static const String authMe = '/auth/me';
   static const String health = '/health';
+  static const String dashboardMe = '/dashboard/me';
 }

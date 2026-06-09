@@ -4,6 +4,11 @@ import { AiProviderClient, AiCompletionRequest, AiProviderError } from './interf
 import { OpenAiProvider } from './providers/openai.provider';
 import { GeminiProvider } from './providers/gemini.provider';
 import { ClaudeProvider } from './providers/claude.provider';
+import { PrismaService } from '../database/prisma/prisma.service';
+
+const mockPrisma = {
+  aiRequest: { create: jest.fn().mockResolvedValue({}) },
+} as unknown as PrismaService;
 
 function fakeClient(
   provider: 'openai' | 'gemini' | 'claude',
@@ -57,6 +62,7 @@ describe('AiRouterService', () => {
     const gemini = fakeClient('gemini', { configured: true, succeed: true });
 
     const service = new AiRouterService(
+      mockPrisma,
       buildConfigService(),
       openai as OpenAiProvider,
       gemini as GeminiProvider,
@@ -77,6 +83,7 @@ describe('AiRouterService', () => {
     const gemini = fakeClient('gemini', { configured: true, succeed: true });
 
     const service = new AiRouterService(
+      mockPrisma,
       buildConfigService(),
       openai as OpenAiProvider,
       gemini as GeminiProvider,
@@ -96,6 +103,7 @@ describe('AiRouterService', () => {
     const gemini = fakeClient('gemini', { configured: true, succeed: true });
 
     const service = new AiRouterService(
+      mockPrisma,
       buildConfigService(),
       openai as OpenAiProvider,
       gemini as GeminiProvider,
@@ -114,6 +122,7 @@ describe('AiRouterService', () => {
     const gemini = fakeClient('gemini', { configured: true, succeed: false });
 
     const service = new AiRouterService(
+      mockPrisma,
       buildConfigService(),
       openai as OpenAiProvider,
       gemini as GeminiProvider,
@@ -125,6 +134,7 @@ describe('AiRouterService', () => {
 
   it('exposes provider status without leaking API keys', () => {
     const service = new AiRouterService(
+      mockPrisma,
       buildConfigService(),
       fakeClient('openai', { configured: true, succeed: true }) as OpenAiProvider,
       fakeClient('gemini', { configured: false }) as GeminiProvider,
