@@ -177,12 +177,13 @@ export class ChatController {
       ],
     });
 
-    // 7. Build sources metadata from RAG chunks
+    // 7. Build sources metadata from RAG chunks (top-5)
     const sources = ragContext?.chunks.slice(0, 5).map((c) => ({
       sourceName: c.sourceName,
       title: c.documentTitle,
-      url: c.documentUrl,
+      url: c.documentUrl.startsWith('manual://') ? null : c.documentUrl,
       articleRef: c.articleRef ?? null,
+      excerpt: c.content.slice(0, 300).replace(/\s+/g, ' ').trim(),
       similarity: Math.round(c.similarity * 100) / 100,
     })) ?? [];
 

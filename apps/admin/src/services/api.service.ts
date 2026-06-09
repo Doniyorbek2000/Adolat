@@ -6,6 +6,8 @@ import {
   SubscriptionPlan,
   Invoice,
   LegalSource,
+  LegalDocument,
+  CreateLegalDocumentPayload,
   SupportTicket,
   AuditLog,
   PromoCode,
@@ -153,6 +155,29 @@ export async function createLegalSource(
 
 export async function deleteLegalSource(id: string): Promise<void> {
   await api.delete(`/legal-sources/${id}`);
+}
+
+// ─── Legal Documents (Manual RAG Pipeline) ────────────────────────────────────
+
+export async function fetchLegalDocuments(): Promise<LegalDocument[]> {
+  const res = await api.get<LegalDocument[]>('/admin/legal-documents');
+  return res.data;
+}
+
+export async function createLegalDocument(
+  payload: CreateLegalDocumentPayload,
+): Promise<{ id: string; status: string }> {
+  const res = await api.post('/admin/legal-documents', payload);
+  return res.data;
+}
+
+export async function retryLegalDocumentIndexing(id: string): Promise<{ status: string }> {
+  const res = await api.post(`/admin/legal-documents/${id}/retry`);
+  return res.data;
+}
+
+export async function deleteLegalDocument(id: string): Promise<void> {
+  await api.delete(`/admin/legal-documents/${id}`);
 }
 
 // ─── Support ──────────────────────────────────────────────────────────────────

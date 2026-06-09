@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
@@ -14,7 +17,10 @@ import {
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
+  ApiOperation,
+  ApiParam,
   ApiProperty,
   ApiPropertyOptional,
   ApiTags,
@@ -27,6 +33,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AdminAnalyticsService } from './admin-analytics.service';
+import { LegalDocumentService } from './legal-document.service';
+import { CreateLegalDocumentDto } from './dto/create-legal-document.dto';
 
 // ─── DTOs ───────────────────────────────────────────────────────────────────
 
@@ -64,7 +72,10 @@ class BulkNotificationDto {
 @Roles('ADMIN')
 @Controller('admin')
 export class AdminAnalyticsController {
-  constructor(private readonly adminService: AdminAnalyticsService) {}
+  constructor(
+    private readonly adminService: AdminAnalyticsService,
+    private readonly legalDocumentService: LegalDocumentService,
+  ) {}
 
   // ── Analytics ──────────────────────────────────────────────────
 
@@ -171,5 +182,43 @@ export class AdminAnalyticsController {
       dto.title,
       dto.body,
     );
+  }
+
+  // ── Legal Documents ────────────────────────────────────────────
+
+  @Post('legal-documents')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: "Qonun hujjatini qo'lda kiritish va indekslashni boshlash" })
+  @ApiCreatedResponse({ description: 'Hujjat saqlandi, indekslash jarayoni boshlandi (PENDING)' })
+  createLegalDocument(
+    @CurrentUser() admin: RequestUser,
+    @Body() dto: CreateLegalDocumentDto,
+  ) {
+    return this.legalDocumentService.create(dto, admin.id);
+  }
+
+  @Get('legal-documents')
+  @ApiOperation({ summary: "Barcha qo'lda kiritilgan hujjatlar ro'yxati (status bilan)" })
+  @ApiOkResponse({ description: "Hujjatlar ro'yxati" })
+  getLegalDocuments() {
+    return this.legalDocumentService.findAll();
+  }
+
+  @Post('legal-documents/:id/retry')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Muvaffaqiyatsiz indekslashni qayta urinish' })
+  @ApiParam({ name: 'id', description: 'LegalSourceVersion UUID' })
+  @ApiOkResponse({ description: 'Qayta indekslash boshlandi' })
+  retryIndexing(@Param('id', ParseUUIDPipe) id: string) {
+    return this.legalDocumentService.retryIndexing(id);
+  }
+
+  @Delete('legal-documents/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Hujjatni va uning chunklarini o'chirish" })
+  @ApiParam({ name: 'id', description: 'LegalSourceVersion UUID' })
+  @ApiNoContentResponse({ description: "Hujjat o'chirildi" })
+  async deleteLegalDocument(@Param('id', ParseUUIDPipe) id: string) {
+    await this.legalDocumentService.deleteDocument(id);
   }
 }

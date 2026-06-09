@@ -153,3 +153,27 @@ export interface PaginatedResponse<T> {
   limit: number;
   totalPages: number;
 }
+
+export type LegalDocIndexingStatus = 'PENDING' | 'INDEXING' | 'INDEXED' | 'FAILED';
+
+export interface LegalDocument {
+  id: string;
+  title: string;
+  category: string | null;
+  sourceUrl: string | null;
+  sourceType: string;
+  indexingStatus: LegalDocIndexingStatus;
+  chunksCount: number;
+  errorMessage: string | null;
+  createdBy: string | null;
+  indexedAt: string | null;
+  createdAt: string;
+}
+
+export interface CreateLegalDocumentPayload {
+  title: string;
+  category?: string;
+  sourceUrl?: string;
+  content: string;
+  sourceType?: string;
+}
