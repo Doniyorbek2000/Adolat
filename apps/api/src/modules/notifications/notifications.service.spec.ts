@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 
 import { NotificationsService } from './notifications.service';
 import { PrismaService } from '../../database/prisma/prisma.service';
+import { PushService } from '../push/push.service';
 
 const USER_ID = 'user-1';
 const NOTIFICATION_ID = 'notif-1';
@@ -21,6 +22,7 @@ const mockNotification = {
 describe('NotificationsService', () => {
   let service: NotificationsService;
   let prisma: Record<string, any>;
+  let pushService: { sendToMultipleDevices: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -33,12 +35,18 @@ describe('NotificationsService', () => {
         update: jest.fn(),
         updateMany: jest.fn(),
       },
+      deviceFingerprint: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
     };
+
+    pushService = { sendToMultipleDevices: jest.fn().mockResolvedValue(undefined) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NotificationsService,
         { provide: PrismaService, useValue: prisma },
+        { provide: PushService, useValue: pushService },
       ],
     }).compile();
 
