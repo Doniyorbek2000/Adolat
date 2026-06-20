@@ -6,10 +6,17 @@ import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/otp_verification_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/reset_password_screen.dart';
+import '../../features/chat/presentation/screens/chat_thread_screen.dart';
+import '../../features/documents/presentation/screens/document_analysis_screen.dart';
+import '../../features/documents/presentation/screens/document_generator_screen.dart';
 import '../../features/home/presentation/screens/main_shell_screen.dart';
 import '../../features/language/presentation/screens/language_selection_screen.dart';
 import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
+import '../../features/support/presentation/screens/create_ticket_screen.dart';
+import '../../features/support/presentation/screens/ticket_detail_screen.dart';
+import '../../features/support/data/models/support_ticket_model.dart';
+import '../../features/chat/data/models/chat_thread_model.dart';
 import 'route_names.dart';
 
 class AppRoutes {
@@ -69,6 +76,38 @@ class AppRoutes {
         path: '/home',
         name: RouteNames.home,
         builder: (context, state) => const MainShellScreen(),
+      ),
+      GoRoute(
+        path: '/chat/:threadId',
+        name: RouteNames.chatThread,
+        builder: (context, state) {
+          final threadId = state.pathParameters['threadId']!;
+          final thread = state.extra as ChatThreadModel?;
+          return ChatThreadScreen(threadId: threadId, initialThread: thread);
+        },
+      ),
+      GoRoute(
+        path: '/document-analysis',
+        name: RouteNames.documentAnalysis,
+        builder: (context, state) => const DocumentAnalysisScreen(),
+      ),
+      GoRoute(
+        path: '/document-generator',
+        name: RouteNames.documentGenerator,
+        builder: (context, state) => const DocumentGeneratorScreen(),
+      ),
+      GoRoute(
+        path: '/support/create',
+        name: RouteNames.createTicket,
+        builder: (context, state) => const CreateTicketScreen(),
+      ),
+      GoRoute(
+        path: '/support/ticket',
+        name: RouteNames.ticketDetail,
+        builder: (context, state) {
+          final ticket = state.extra as SupportTicketModel;
+          return TicketDetailScreen(ticket: ticket);
+        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

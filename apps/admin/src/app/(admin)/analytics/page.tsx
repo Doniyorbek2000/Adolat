@@ -14,40 +14,12 @@ import { fetchAnalytics } from '../../../services/api.service';
 
 type Period = '7d' | '30d' | '90d';
 
-function generateMockData(period: Period) {
-  const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
-  const usersGrowth = Array.from({ length: days }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (days - 1 - i));
-    return {
-      date: d.toLocaleDateString('en', { month: 'short', day: 'numeric' }),
-      count: Math.floor(Math.random() * 30) + 5 + i * 2,
-    };
-  });
-  const revenueTrend = Array.from({ length: days }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (days - 1 - i));
-    return {
-      date: d.toLocaleDateString('en', { month: 'short', day: 'numeric' }),
-      amount: Math.floor(Math.random() * 500) + 200 + i * 5,
-    };
-  });
-  const aiUsage = Array.from({ length: days }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (days - 1 - i));
-    return {
-      date: d.toLocaleDateString('en', { month: 'short', day: 'numeric' }),
-      requests: Math.floor(Math.random() * 1000) + 500 + i * 10,
-    };
-  });
-  return { usersGrowth, revenueTrend, aiUsage, stats: {
-    totalUsers: 1240 + days * 2,
-    activeSubscriptions: 389,
-    todayRequests: 2847,
-    totalRevenue: 48320 + days * 120,
-    recentErrors: 14,
-  }};
-}
+const emptyAnalytics = {
+  usersGrowth: [] as { date: string; count: number }[],
+  revenueTrend: [] as { date: string; amount: number }[],
+  aiUsage: [] as { date: string; requests: number }[],
+  stats: { totalUsers: 0, activeSubscriptions: 0, todayRequests: 0, totalRevenue: 0, recentErrors: 0 },
+};
 
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>('30d');
@@ -57,8 +29,7 @@ export default function AnalyticsPage() {
     queryFn: () => fetchAnalytics(period),
   });
 
-  const fallbackData = generateMockData(period);
-  const analytics = data ?? fallbackData;
+  const analytics = data ?? emptyAnalytics;
 
   const periodOptions: Period[] = ['7d', '30d', '90d'];
 

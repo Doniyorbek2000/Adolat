@@ -220,7 +220,7 @@ export async function fetchAuditLogs(params?: {
 // ─── System Settings ──────────────────────────────────────────────────────────
 
 export async function fetchSystemSettings(): Promise<SystemSetting[]> {
-  const res = await api.get('/admin/system-settings');
+  const res = await api.get('/admin/settings');
   return res.data;
 }
 
@@ -228,6 +228,6 @@ export async function updateSystemSetting(
   key: string,
   value: string
 ): Promise<SystemSetting> {
-  const res = await api.patch(`/admin/system-settings/${key}`, { value });
+  const res = await api.patch(`/admin/settings/${key}`, { value });
   return res.data;
 }

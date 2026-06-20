@@ -67,6 +67,27 @@ export class SubscriptionsService {
     return plan;
   }
 
+  async updatePlan(planId: string, data: {
+    name?: string;
+    description?: string;
+    priceUzs?: number;
+    billingPeriodDays?: number;
+    questionLimit?: number;
+    documentAnalysisLimit?: number;
+    generatedDocumentLimit?: number;
+    voiceMinutesLimit?: number;
+    maxFileSizeMb?: number;
+    exportEnabled?: boolean;
+    prioritySupport?: boolean;
+    isActive?: boolean;
+  }): Promise<SubscriptionPlan> {
+    await this.getPlan(planId);
+    return this.prisma.subscriptionPlan.update({
+      where: { id: planId },
+      data,
+    });
+  }
+
   // ----------------------------------------------------------------
   // Current subscription
   // ----------------------------------------------------------------

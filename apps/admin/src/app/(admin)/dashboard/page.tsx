@@ -20,26 +20,6 @@ import {
 import StatCard from '../../../components/stat-card';
 import { fetchDashboardOverview, fetchAuditLogs } from '../../../services/api.service';
 
-// Fallback mock data when API is unavailable
-const mockData = {
-  stats: {
-    totalUsers: 1240,
-    activeSubscriptions: 389,
-    todayRequests: 2847,
-    totalRevenue: 48320,
-    recentErrors: 14,
-    failedJobs: 3,
-  },
-  requestsOverTime: Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    return {
-      date: d.toLocaleDateString('en', { month: 'short', day: 'numeric' }),
-      requests: Math.floor(Math.random() * 1500) + 800,
-    };
-  }),
-};
-
 export default function DashboardPage() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['dashboard-overview'],
@@ -51,10 +31,8 @@ export default function DashboardPage() {
     queryFn: () => fetchAuditLogs({ page: 1, limit: 5 }),
   });
 
-  const stats = isError ? mockData.stats : data?.stats ?? mockData.stats;
-  const chartData = isError
-    ? mockData.requestsOverTime
-    : data?.requestsOverTime ?? mockData.requestsOverTime;
+  const stats = data?.stats;
+  const chartData = data?.requestsOverTime ?? [];
 
   return (
     <div className="space-y-6">
@@ -68,7 +46,7 @@ export default function DashboardPage() {
       {isError && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 flex items-center gap-2 text-sm text-yellow-800">
           <AlertTriangle size={16} />
-          API bilan bog&apos;lanishda xatolik — namoyish ma&apos;lumotlari ko&apos;rsatilmoqda.
+          API bilan bog&apos;lanishda xatolik yuz berdi. Qayta urinib ko&apos;ring.
         </div>
       )}
 
@@ -76,28 +54,28 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
         <StatCard
           title="Total Users"
-          value={isLoading ? '...' : stats.totalUsers}
+          value={isLoading ? '...' : stats?.totalUsers ?? 0}
           icon={<Users size={20} />}
           color="blue"
           trend={4.2}
         />
         <StatCard
           title="Active Subscriptions"
-          value={isLoading ? '...' : stats.activeSubscriptions}
+          value={isLoading ? '...' : stats?.activeSubscriptions ?? 0}
           icon={<CreditCard size={20} />}
           color="green"
           trend={1.8}
         />
         <StatCard
           title="Today AI Requests"
-          value={isLoading ? '...' : stats.todayRequests}
+          value={isLoading ? '...' : stats?.todayRequests ?? 0}
           icon={<Zap size={20} />}
           color="purple"
           trend={12.5}
         />
         <StatCard
           title="Total Revenue"
-          value={isLoading ? '...' : stats.totalRevenue}
+          value={isLoading ? '...' : stats?.totalRevenue ?? 0}
           icon={<DollarSign size={20} />}
           color="yellow"
           prefix="$"
@@ -105,7 +83,7 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Recent Errors"
-          value={isLoading ? '...' : stats.recentErrors}
+          value={isLoading ? '...' : stats?.recentErrors ?? 0}
           icon={<AlertTriangle size={20} />}
           color="red"
           trend={-2.1}

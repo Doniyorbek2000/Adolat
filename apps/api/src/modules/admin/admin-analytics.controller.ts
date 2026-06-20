@@ -35,7 +35,9 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { AdminAnalyticsService } from './admin-analytics.service';
 import { LegalDocumentService } from './legal-document.service';
 import { SupportService } from '../support/support.service';
+import { PromoService } from '../promo/promo.service';
 import { CreateLegalDocumentDto } from './dto/create-legal-document.dto';
+import { CreatePromoCodeDto, UpdatePromoCodeDto } from '../promo/dto/create-promo-code.dto';
 
 // ─── DTOs ───────────────────────────────────────────────────────────────────
 
@@ -85,6 +87,7 @@ export class AdminAnalyticsController {
     private readonly adminService: AdminAnalyticsService,
     private readonly legalDocumentService: LegalDocumentService,
     private readonly supportService: SupportService,
+    private readonly promoService: PromoService,
   ) {}
 
   // ── Analytics ──────────────────────────────────────────────────
@@ -241,6 +244,32 @@ export class AdminAnalyticsController {
     @Body() dto: AdminReplyDto,
   ) {
     return this.supportService.adminReply(admin.id, id, dto.body);
+  }
+
+  // ── Promo Codes ────────────────────────────────────────────────
+
+  @Get('promo-codes')
+  @ApiOkResponse({ description: 'All promo codes' })
+  getPromoCodes(@CurrentUser() admin: RequestUser) {
+    return this.promoService.findAll(admin.id);
+  }
+
+  @Post('promo-codes')
+  @ApiCreatedResponse({ description: 'Promo code created' })
+  createPromoCode(
+    @CurrentUser() admin: RequestUser,
+    @Body() dto: CreatePromoCodeDto,
+  ) {
+    return this.promoService.create(dto, admin.id);
+  }
+
+  @Patch('promo-codes/:id')
+  @ApiOkResponse({ description: 'Promo code updated' })
+  updatePromoCode(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePromoCodeDto,
+  ) {
+    return this.promoService.update(id, dto);
   }
 
   // ── Legal Documents ────────────────────────────────────────────

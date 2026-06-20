@@ -8,6 +8,9 @@ import '../../../../core/routes/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/providers/auth_state.dart';
+import '../../../chat/presentation/screens/chat_list_screen.dart';
+import '../../../documents/presentation/screens/documents_screen.dart';
+import '../../../subscription/presentation/screens/subscription_screen.dart';
 import 'home_screen.dart';
 
 class MainShellScreen extends ConsumerStatefulWidget {
@@ -35,9 +38,9 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
 
     final bodies = <Widget>[
       const HomeScreen(),
-      _PlaceholderTab(icon: Icons.chat_bubble_outline, label: LocaleKeys.chat.tr()),
-      _PlaceholderTab(icon: Icons.description_outlined, label: LocaleKeys.documents.tr()),
-      _PlaceholderTab(icon: Icons.star_outline, label: LocaleKeys.subscription.tr()),
+      const ChatListScreen(),
+      const DocumentsScreen(),
+      const SubscriptionScreen(),
       _ProfileTab(user: authState.user!),
     ];
 
@@ -73,31 +76,6 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
             label: LocaleKeys.profile.tr(),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PlaceholderTab extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _PlaceholderTab({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(label), automaticallyImplyLeading: false),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 64, color: AppColors.textSecondary),
-            const SizedBox(height: 16),
-            Text(label, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text('Tez orada...', style: TextStyle(color: AppColors.textSecondary)),
-          ],
-        ),
       ),
     );
   }
