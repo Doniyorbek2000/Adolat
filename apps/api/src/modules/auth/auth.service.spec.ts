@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService, RequestContext } from './auth.service';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { EmailService } from '../email/email.service';
 import * as passwordUtil from './utils/password.util';
 import * as tokenUtil from './utils/token.util';
 
@@ -52,6 +53,7 @@ describe('AuthService', () => {
   let prisma: Record<string, any>;
   let jwtService: { signAsync: jest.Mock };
   let auditLogsService: { createLog: jest.Mock };
+  let emailService: { sendOtp: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -88,6 +90,7 @@ describe('AuthService', () => {
 
     jwtService = { signAsync: jest.fn().mockResolvedValue('jwt-token') };
     auditLogsService = { createLog: jest.fn().mockResolvedValue(undefined) };
+    emailService = { sendOtp: jest.fn().mockResolvedValue(undefined) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -95,6 +98,7 @@ describe('AuthService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwtService },
         { provide: AuditLogsService, useValue: auditLogsService },
+        { provide: EmailService, useValue: emailService },
         {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue(APP_SETTINGS) },
