@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/localization/locale_keys.dart';
 import '../../../../core/routes/route_names.dart';
@@ -111,17 +112,30 @@ class ProfileScreen extends ConsumerWidget {
               'v1.0.0',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
-            onTap: () {},
+            onTap: () {
+              showAboutDialog(
+                context: context,
+                applicationName: 'Adolat AI',
+                applicationVersion: '1.0.0',
+                applicationLegalese: "O'zbekiston huquqiy yordamchi platformasi",
+              );
+            },
           ),
           _ProfileTile(
             icon: Icons.privacy_tip_outlined,
             title: LocaleKeys.privacyPolicy.tr(),
-            onTap: () {},
+            onTap: () => launchUrl(
+              Uri.parse('https://adolat.ai/privacy'),
+              mode: LaunchMode.externalApplication,
+            ),
           ),
           _ProfileTile(
             icon: Icons.article_outlined,
             title: LocaleKeys.termsOfUse.tr(),
-            onTap: () {},
+            onTap: () => launchUrl(
+              Uri.parse('https://adolat.ai/terms'),
+              mode: LaunchMode.externalApplication,
+            ),
           ),
           const SizedBox(height: 32),
 
