@@ -18,7 +18,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import StatCard from '../../../components/stat-card';
-import { fetchDashboardOverview } from '../../../services/api.service';
+import { fetchDashboardOverview, fetchAuditLogs } from '../../../services/api.service';
 
 // Fallback mock data when API is unavailable
 const mockData = {
@@ -46,6 +46,11 @@ export default function DashboardPage() {
     queryFn: fetchDashboardOverview,
   });
 
+  const { data: auditData } = useQuery({
+    queryKey: ['dashboard-recent-activity'],
+    queryFn: () => fetchAuditLogs({ page: 1, limit: 5 }),
+  });
+
   const stats = isError ? mockData.stats : data?.stats ?? mockData.stats;
   const chartData = isError
     ? mockData.requestsOverTime
@@ -59,6 +64,13 @@ export default function DashboardPage() {
           Welcome back — here&apos;s what&apos;s happening on Adolat AI.
         </p>
       </div>
+
+      {isError && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 flex items-center gap-2 text-sm text-yellow-800">
+          <AlertTriangle size={16} />
+          API bilan bog&apos;lanishda xatolik — namoyish ma&apos;lumotlari ko&apos;rsatilmoqda.
+        </div>
+      )}
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4">
@@ -145,10 +157,10 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Recent Activity placeholder */}
+      {/* Recent Activity */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <h2 className="text-base font-semibold text-gray-700 mb-4">
-          Recent Activity
+          So&apos;nggi faoliyat
         </h2>
         {isLoading ? (
           <div className="space-y-3">
@@ -156,25 +168,27 @@ export default function DashboardPage() {
               <div key={i} className="h-5 bg-gray-100 rounded animate-pulse" />
             ))}
           </div>
-        ) : (
+        ) : (auditData?.data ?? []).length > 0 ? (
           <ul className="divide-y divide-gray-100 text-sm">
-            <li className="py-2 flex items-center justify-between">
-              <span className="text-gray-600">New user registered: user123@gmail.com</span>
-              <span className="text-gray-400 text-xs">2 min ago</span>
-            </li>
-            <li className="py-2 flex items-center justify-between">
-              <span className="text-gray-600">Subscription upgraded: PRO plan</span>
-              <span className="text-gray-400 text-xs">15 min ago</span>
-            </li>
-            <li className="py-2 flex items-center justify-between">
-              <span className="text-gray-600">Legal source synced: lex.uz</span>
-              <span className="text-gray-400 text-xs">1 hr ago</span>
-            </li>
-            <li className="py-2 flex items-center justify-between">
-              <span className="text-gray-600">Payment received: $49.00 via Payme</span>
-              <span className="text-gray-400 text-xs">2 hr ago</span>
-            </li>
+            {auditData!.data.map((log) => (
+              <li key={log.id} className="py-2 flex items-center justify-between">
+                <span className="text-gray-600">
+                  <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium mr-2 ${
+                    log.action === 'BLOCK' ? 'bg-red-50 text-red-700' :
+                    log.action === 'UNBLOCK' ? 'bg-green-50 text-green-700' :
+                    log.action === 'LOGIN' ? 'bg-blue-50 text-blue-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>{log.action}</span>
+                  {log.entityType} {log.user?.email ? `(${log.user.email})` : ''}
+                </span>
+                <span className="text-gray-400 text-xs whitespace-nowrap ml-2">
+                  {new Date(log.createdAt).toLocaleString()}
+                </span>
+              </li>
+            ))}
           </ul>
+        ) : (
+          <p className="text-gray-400 text-sm text-center py-4">Faoliyat hali yo&apos;q</p>
         )}
       </div>
     </div>
