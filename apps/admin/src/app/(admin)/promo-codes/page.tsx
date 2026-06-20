@@ -4,27 +4,13 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, X } from 'lucide-react';
 import DataTable, { Column } from '../../../components/data-table';
+import ErrorCard from '../../../components/error-card';
 import { PromoCode } from '../../../types';
 import {
   fetchPromoCodes,
   createPromoCode,
   togglePromoCode,
 } from '../../../services/api.service';
-
-const mockPromoCodes: PromoCode[] = [
-  {
-    id: '1', code: 'WELCOME20', type: 'percent', discountPercent: 20,
-    maxRedemptions: 100, redemptionsCount: 34, validUntil: '2025-12-31', isActive: true,
-  },
-  {
-    id: '2', code: 'LEGAL50', type: 'percent', discountPercent: 50,
-    maxRedemptions: 50, redemptionsCount: 50, validUntil: '2025-06-30', isActive: false,
-  },
-  {
-    id: '3', code: 'SUMMER10', type: 'percent', discountPercent: 10,
-    maxRedemptions: 200, redemptionsCount: 12, validUntil: '2025-09-01', isActive: true,
-  },
-];
 
 interface CreateFormData {
   code: string;
@@ -171,12 +157,12 @@ export default function PromoCodesPage() {
   const [showModal, setShowModal] = useState(false);
   const qc = useQueryClient();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['promo-codes'],
     queryFn: fetchPromoCodes,
   });
 
-  const codes = isError ? mockPromoCodes : data ?? mockPromoCodes;
+  const codes = data ?? [];
 
   const createMutation = useMutation({
     mutationFn: createPromoCode,
@@ -291,12 +277,16 @@ export default function PromoCodesPage() {
         </button>
       </div>
 
+      {isError && (
+        <ErrorCard message="Promo kodlarni yuklashda xatolik" onRetry={() => refetch()} />
+      )}
+
       <DataTable
-        columns={columns as Column<Record<string, unknown>>[]}
-        data={codes as unknown as Record<string, unknown>[]}
+        columns={columns}
+        data={codes}
         loading={isLoading}
         emptyMessage="No promo codes yet."
-        keyExtractor={(row) => row.id as string}
+        keyExtractor={(row) => row.id}
       />
 
       {showModal && (

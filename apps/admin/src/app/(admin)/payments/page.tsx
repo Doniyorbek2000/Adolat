@@ -184,11 +184,11 @@ export default function PaymentsPage() {
       </div>
 
       <DataTable
-        columns={columns as Column<Record<string, unknown>>[]}
-        data={invoices as unknown as Record<string, unknown>[]}
+        columns={columns}
+        data={invoices}
         loading={false}
         emptyMessage="No payments found."
-        keyExtractor={(row) => row.id as string}
+        keyExtractor={(row) => row.id}
       />
 
       {totalPages > 1 && (

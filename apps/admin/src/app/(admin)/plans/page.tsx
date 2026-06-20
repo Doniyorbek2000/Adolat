@@ -3,32 +3,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Check, X } from 'lucide-react';
+import ErrorCard from '../../../components/error-card';
 import { SubscriptionPlan } from '../../../types';
 import { fetchPlans, updatePlan } from '../../../services/api.service';
-
-// Mock data when API unavailable
-const mockPlans: SubscriptionPlan[] = [
-  {
-    id: '1', code: 'free', name: 'Free', price: 0, currency: 'USD',
-    questionLimit: 5, documentAnalysisLimit: 1, generatedDocumentLimit: 0,
-    voiceMinutesLimit: 0, isActive: true,
-  },
-  {
-    id: '2', code: 'basic', name: 'Basic', price: 9.99, currency: 'USD',
-    questionLimit: 50, documentAnalysisLimit: 10, generatedDocumentLimit: 5,
-    voiceMinutesLimit: 30, isActive: true,
-  },
-  {
-    id: '3', code: 'pro', name: 'Pro', price: 29.99, currency: 'USD',
-    questionLimit: 500, documentAnalysisLimit: 100, generatedDocumentLimit: 50,
-    voiceMinutesLimit: 300, isActive: true,
-  },
-  {
-    id: '4', code: 'enterprise', name: 'Enterprise', price: 99.99, currency: 'USD',
-    questionLimit: -1, documentAnalysisLimit: -1, generatedDocumentLimit: -1,
-    voiceMinutesLimit: -1, isActive: true,
-  },
-];
 
 function LimitDisplay({ val }: { val: number }) {
   return <span>{val === -1 ? 'Unlimited' : val.toLocaleString()}</span>;
@@ -118,12 +95,12 @@ export default function PlansPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const qc = useQueryClient();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['plans'],
     queryFn: fetchPlans,
   });
 
-  const plans = isError ? mockPlans : data ?? mockPlans;
+  const plans = data ?? [];
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Partial<SubscriptionPlan> }) =>
@@ -141,6 +118,15 @@ export default function PlansPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
           Loading plans...
         </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-5">
+        <h1 className="text-2xl font-bold text-gray-800">Subscription Plans</h1>
+        <ErrorCard message="Tariflarni yuklashda xatolik" onRetry={() => refetch()} />
       </div>
     );
   }

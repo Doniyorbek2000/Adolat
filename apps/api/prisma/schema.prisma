@@ -250,6 +250,7 @@ model User {
   auditLogsAsAdmin AuditLog[]      @relation("AuditLogAdmin")
   adminActions     AdminAction[]
   settingsUpdated  SystemSetting[]
+  triggeredSyncJobs SourceSyncJob[] @relation("SyncJobTriggeredByAdmin")
 
   @@index([status])
   @@map("users")
@@ -446,6 +447,7 @@ model Subscription {
   user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan          SubscriptionPlan @relation(fields: [planId], references: [id])
   usageCounters UsageCounter[]
+  invoices      Invoice[]
 
   @@index([userId, status])
   @@map("subscriptions")
@@ -519,9 +521,10 @@ model Invoice {
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
-  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan     SubscriptionPlan? @relation(fields: [planId], references: [id])
-  payments Payment[]
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan         SubscriptionPlan? @relation(fields: [planId], references: [id])
+  subscription Subscription?     @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  payments     Payment[]
 
   @@index([userId, status])
   @@map("invoices")
@@ -792,7 +795,8 @@ model SourceSyncJob {
   errorMessage       String?       @map("error_message")
   createdAt          DateTime      @default(now()) @map("created_at")
 
-  source LegalSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  source           LegalSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  triggeredByAdmin User?       @relation("SyncJobTriggeredByAdmin", fields: [triggeredByAdminId], references: [id], onDelete: SetNull)
 
   @@index([sourceId, status])
   @@map("source_sync_jobs")

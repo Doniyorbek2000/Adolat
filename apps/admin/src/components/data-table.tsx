@@ -17,7 +17,8 @@ interface DataTableProps<T> {
   keyExtractor?: (row: T) => string;
 }
 
-export default function DataTable<T extends Record<string, unknown>>({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export default function DataTable<T extends Record<string, any> = Record<string, unknown>>({
   columns,
   data,
   loading = false,

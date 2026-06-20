@@ -124,6 +124,20 @@ export class SupportService {
   // Admin
   // ----------------------------------------------------------------
 
+  async getTicketAsAdmin(
+    ticketId: string,
+  ): Promise<SupportTicket & { messages: SupportMessage[] }> {
+    const ticket = await this.prisma.supportTicket.findUnique({
+      where: { id: ticketId },
+      include: {
+        messages: { orderBy: { createdAt: 'asc' } },
+        user: { include: { profile: true } },
+      },
+    });
+    if (!ticket) throw new NotFoundException('Murojaat topilmadi');
+    return ticket;
+  }
+
   async getAllTickets(filter?: {
     status?: SupportTicketStatus;
     priority?: SupportPriority;

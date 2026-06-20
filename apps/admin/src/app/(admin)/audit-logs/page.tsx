@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Shield } from 'lucide-react';
-import { api } from '../../../lib/api';
+import api from '../../../lib/api';
+import ErrorCard from '../../../components/error-card';
 
 export default function AuditLogsPage() {
   const [page, setPage] = useState(1);
   const [action, setAction] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['audit-logs', page, action],
     queryFn: () =>
       api.get('/admin/audit-logs', { params: { page, limit: 20, action: action || undefined } }).then((r) => r.data),
@@ -39,6 +40,10 @@ export default function AuditLogsPage() {
           </select>
         </div>
       </div>
+
+      {isError && (
+        <ErrorCard message="Audit loglarni yuklashda xatolik" onRetry={() => refetch()} />
+      )}
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

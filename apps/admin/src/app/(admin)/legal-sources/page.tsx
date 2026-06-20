@@ -37,7 +37,7 @@ function AddSourceModal({
   loading: boolean;
 }) {
   const [form, setForm] = useState({
-    name: '', type: 'web', baseUrl: '', status: 'active' as const,
+    name: '', type: 'web', baseUrl: '', status: 'active' as 'active' | 'inactive',
   });
 
   return (
@@ -325,11 +325,11 @@ export default function LegalSourcesPage() {
         </div>
       ) : (
         <DataTable
-          columns={columns as Column<Record<string, unknown>>[]}
-          data={sources as unknown as Record<string, unknown>[]}
+          columns={columns}
+          data={sources}
           loading={false}
           emptyMessage="No legal sources configured."
-          keyExtractor={(row) => row.id as string}
+          keyExtractor={(row) => row.id}
         />
       )}
 

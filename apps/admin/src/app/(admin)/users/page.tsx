@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import DataTable, { Column } from '../../../components/data-table';
+import ErrorCard from '../../../components/error-card';
 import { UserRecord } from '../../../types';
 import { fetchUsers, blockUser, unblockUser } from '../../../services/api.service';
 
@@ -29,7 +30,7 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['users', page, search],
     queryFn: () => fetchUsers({ page, limit: 20, search }),
   });
@@ -123,6 +124,13 @@ export default function UsersPage() {
         </div>
       </div>
 
+      {isError && (
+        <ErrorCard
+          message="Foydalanuvchilar ro'yxatini yuklashda xatolik"
+          onRetry={() => refetch()}
+        />
+      )}
+
       {/* Search */}
       <div className="relative w-full max-w-sm">
         <Search
@@ -142,11 +150,11 @@ export default function UsersPage() {
       </div>
 
       <DataTable
-        columns={columns as Column<Record<string, unknown>>[]}
-        data={users as unknown as Record<string, unknown>[]}
+        columns={columns}
+        data={users}
         loading={isLoading}
         emptyMessage="No users found."
-        keyExtractor={(row) => row.id as string}
+        keyExtractor={(row) => row.id}
       />
 
       {/* Pagination */}

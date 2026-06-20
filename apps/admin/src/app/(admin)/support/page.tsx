@@ -2,42 +2,16 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, MessageSquare } from 'lucide-react';
+import { X, MessageSquare, Send } from 'lucide-react';
 import DataTable, { Column } from '../../../components/data-table';
+import ErrorCard from '../../../components/error-card';
 import { SupportTicket } from '../../../types';
+import api from '../../../lib/api';
 import {
   fetchSupportTickets,
   fetchTicketDetail,
   updateTicketStatus,
 } from '../../../services/api.service';
-
-const mockTickets: SupportTicket[] = [
-  {
-    id: 'TKT-001', subject: 'Cannot access my subscription features',
-    status: 'open', priority: 'high',
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    user: { email: 'alice@example.com' },
-    messages: [
-      { id: 'm1', body: 'I paid for the pro plan but I cannot use document analysis.', isAdmin: false, createdAt: new Date(Date.now() - 3600000).toISOString() },
-    ],
-  },
-  {
-    id: 'TKT-002', subject: 'AI response is in wrong language',
-    status: 'in_progress', priority: 'medium',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    user: { email: 'bob@example.com' },
-    messages: [
-      { id: 'm2', body: 'The AI keeps responding in Russian even when I ask in Uzbek.', isAdmin: false, createdAt: new Date(Date.now() - 86400000).toISOString() },
-      { id: 'm3', body: "We're looking into this issue. Please try setting your language preference in the app settings.", isAdmin: true, createdAt: new Date(Date.now() - 82800000).toISOString() },
-    ],
-  },
-  {
-    id: 'TKT-003', subject: 'Billing issue — charged twice',
-    status: 'resolved', priority: 'urgent',
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    user: { email: 'carol@example.com' },
-  },
-];
 
 const statusColors: Record<string, string> = {
   open: 'bg-blue-100 text-blue-700',
@@ -57,11 +31,23 @@ function TicketDetailModal({
   ticket,
   onClose,
   onStatusChange,
+  onReplySent,
 }: {
   ticket: SupportTicket;
   onClose: () => void;
   onStatusChange: (status: string) => void;
+  onReplySent: () => void;
 }) {
+  const [replyText, setReplyText] = useState('');
+  const replyMutation = useMutation({
+    mutationFn: (body: string) =>
+      api.post(`/admin/support/tickets/${ticket.id}/reply`, { body }),
+    onSuccess: () => {
+      setReplyText('');
+      onReplySent();
+    },
+  });
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
@@ -120,9 +106,26 @@ function TicketDetailModal({
         </div>
 
         <div className="p-4 border-t border-gray-200">
-          <p className="text-xs text-gray-400 text-center">
-            Reply feature coming soon
-          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && replyText.trim()) replyMutation.mutate(replyText.trim());
+              }}
+              placeholder="Javob yozing..."
+              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A6C]"
+            />
+            <button
+              onClick={() => replyText.trim() && replyMutation.mutate(replyText.trim())}
+              disabled={!replyText.trim() || replyMutation.isPending}
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#1A3A6C] text-white text-sm rounded-lg hover:bg-[#15305a] disabled:opacity-50 transition"
+            >
+              <Send size={14} />
+              {replyMutation.isPending ? 'Yuborilmoqda...' : 'Yuborish'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -134,7 +137,7 @@ export default function SupportPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const qc = useQueryClient();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['support-tickets'],
     queryFn: () => fetchSupportTickets({ limit: 50 }),
   });
@@ -145,7 +148,7 @@ export default function SupportPage() {
     enabled: !!selectedId,
   });
 
-  const tickets = isError ? mockTickets : data?.data ?? mockTickets;
+  const tickets = data?.data ?? [];
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -243,12 +246,16 @@ export default function SupportPage() {
         </p>
       </div>
 
+      {isError && (
+        <ErrorCard message="Tiketlarni yuklashda xatolik" onRetry={() => refetch()} />
+      )}
+
       <DataTable
-        columns={columns as Column<Record<string, unknown>>[]}
-        data={tickets as unknown as Record<string, unknown>[]}
+        columns={columns}
+        data={tickets}
         loading={isLoading}
         emptyMessage="No support tickets."
-        keyExtractor={(row) => row.id as string}
+        keyExtractor={(row) => row.id}
       />
 
       {displayTicket && (
@@ -261,6 +268,9 @@ export default function SupportPage() {
           onStatusChange={(status) => {
             statusMutation.mutate({ id: displayTicket.id, status });
             setSelectedTicket((t) => (t ? { ...t, status: status as SupportTicket['status'] } : t));
+          }}
+          onReplySent={() => {
+            qc.invalidateQueries({ queryKey: ['ticket-detail', selectedId] });
           }}
         />
       )}

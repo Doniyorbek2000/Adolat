@@ -241,11 +241,11 @@ export default function AiMonitoringPage() {
       <div className="space-y-3">
         <h2 className="text-base font-semibold text-gray-700">Recent AI Requests</h2>
         <DataTable
-          columns={requestColumns as Column<Record<string, unknown>>[]}
-          data={(data.recentRequests ?? []) as unknown as Record<string, unknown>[]}
+          columns={requestColumns}
+          data={data.recentRequests ?? []}
           loading={false}
           emptyMessage="No recent requests."
-          keyExtractor={(r) => r.id as string}
+          keyExtractor={(r) => r.id}
         />
       </div>
     </div>

@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import StatCard from '../../../components/stat-card';
+import ErrorCard from '../../../components/error-card';
 import { Users, DollarSign, Zap, TrendingUp } from 'lucide-react';
 import { fetchAnalytics } from '../../../services/api.service';
 
@@ -51,13 +52,13 @@ function generateMockData(period: Period) {
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>('30d');
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['analytics', period],
     queryFn: () => fetchAnalytics(period),
   });
 
-  const mockData = generateMockData(period);
-  const analytics = isError ? mockData : data ?? mockData;
+  const fallbackData = generateMockData(period);
+  const analytics = data ?? fallbackData;
 
   const periodOptions: Period[] = ['7d', '30d', '90d'];
 
@@ -86,6 +87,10 @@ export default function AnalyticsPage() {
           ))}
         </div>
       </div>
+
+      {isError && (
+        <ErrorCard message="Analitika ma'lumotlarini yuklashda xatolik" onRetry={() => refetch()} />
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -177,7 +182,7 @@ export default function AnalyticsPage() {
                   interval={Math.floor(analytics.revenueTrend.length / 6)}
                 />
                 <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={50} />
-                <Tooltip formatter={(val: number) => [`$${val}`, 'Revenue']} />
+                <Tooltip formatter={(val) => [`$${val}`, 'Revenue']} />
                 <Bar dataKey="amount" fill="#2563eb" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

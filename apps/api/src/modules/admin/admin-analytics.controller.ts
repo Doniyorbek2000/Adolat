@@ -34,6 +34,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AdminAnalyticsService } from './admin-analytics.service';
 import { LegalDocumentService } from './legal-document.service';
+import { SupportService } from '../support/support.service';
 import { CreateLegalDocumentDto } from './dto/create-legal-document.dto';
 
 // ─── DTOs ───────────────────────────────────────────────────────────────────
@@ -44,10 +45,11 @@ class UpdateSettingDto {
 }
 
 class BulkNotificationDto {
-  @ApiProperty({ type: [String], description: 'List of user UUIDs to notify' })
+  @ApiPropertyOptional({ type: [String], description: 'User UUIDs to notify (empty = broadcast to all)' })
+  @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
-  userIds!: string[];
+  userIds?: string[];
 
   @ApiProperty({ enum: NotificationType })
   @IsEnum(NotificationType)
@@ -71,10 +73,18 @@ class BulkNotificationDto {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
 @Controller('admin')
+class AdminReplyDto {
+  @ApiProperty({ minLength: 1 })
+  @IsString()
+  @MinLength(1)
+  body!: string;
+}
+
 export class AdminAnalyticsController {
   constructor(
     private readonly adminService: AdminAnalyticsService,
     private readonly legalDocumentService: LegalDocumentService,
+    private readonly supportService: SupportService,
   ) {}
 
   // ── Analytics ──────────────────────────────────────────────────
@@ -167,9 +177,18 @@ export class AdminAnalyticsController {
     return this.adminService.updateSetting(key, dto.value, admin.id);
   }
 
-  // ── Bulk Notifications ─────────────────────────────────────────
+  // ── Notifications ───────────────────────────────────────────────
 
-  @Post('notifications/send')
+  @Get('notifications')
+  @ApiOkResponse({ description: 'Recent admin-sent notifications' })
+  getAdminNotifications(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+  ) {
+    return this.adminService.getAdminNotifications(page, limit);
+  }
+
+  @Post('notifications/bulk')
   @ApiCreatedResponse({ description: 'Bulk notification sent' })
   sendBulkNotification(
     @CurrentUser() admin: RequestUser,
@@ -177,11 +196,51 @@ export class AdminAnalyticsController {
   ) {
     return this.adminService.sendBulkNotification(
       admin.id,
-      dto.userIds,
+      dto.userIds ?? [],
       dto.type,
       dto.title,
       dto.body,
     );
+  }
+
+  // ── Support Tickets (Admin) ─────────────────────────────────────
+
+  @Get('support/tickets')
+  @ApiOkResponse({ description: 'All support tickets' })
+  getSupportTickets(
+    @Query('status') status?: string,
+    @Query('priority') priority?: string,
+  ) {
+    return this.supportService.getAllTickets({
+      status: status as never,
+      priority: priority as never,
+    });
+  }
+
+  @Get('support/tickets/:id')
+  @ApiOkResponse({ description: 'Support ticket detail with messages' })
+  getSupportTicketDetail(@Param('id', ParseUUIDPipe) id: string) {
+    return this.supportService.getTicketAsAdmin(id);
+  }
+
+  @Patch('support/tickets/:id')
+  @ApiOkResponse({ description: 'Support ticket updated' })
+  updateSupportTicket(
+    @CurrentUser() admin: RequestUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: { status?: string; priority?: string },
+  ) {
+    return this.supportService.updateTicket(admin.id, id, dto as never);
+  }
+
+  @Post('support/tickets/:id/reply')
+  @ApiCreatedResponse({ description: 'Admin reply sent' })
+  adminReplyToTicket(
+    @CurrentUser() admin: RequestUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AdminReplyDto,
+  ) {
+    return this.supportService.adminReply(admin.id, id, dto.body);
   }
 
   // ── Legal Documents ────────────────────────────────────────────

@@ -288,23 +288,64 @@ export class AdminAnalyticsService {
     return setting;
   }
 
+  async getAdminNotifications(page: number, limit: number) {
+    const where = {
+      action: 'SEND_BULK_NOTIFICATION',
+    };
+
+    const [actions, total] = await Promise.all([
+      this.prisma.adminAction.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.adminAction.count({ where }),
+    ]);
+
+    const notifications = actions.map((a) => {
+      const meta = (a.metadata ?? {}) as Record<string, unknown>;
+      return {
+        id: a.id,
+        type: meta.type ?? 'SYSTEM',
+        title: meta.title ?? '',
+        body: meta.body ?? '',
+        userCount: meta.userCount ?? 0,
+        createdAt: a.createdAt,
+      };
+    });
+
+    return { notifications, total, page, limit };
+  }
+
   async sendBulkNotification(
     adminId: string,
     userIds: string[],
     type: NotificationType,
     title: string,
     body: string,
-  ): Promise<void> {
-    await this.notificationsService.sendBulk(userIds, type, title, body);
+  ): Promise<{ sentCount: number }> {
+    let targetUserIds = userIds;
+
+    if (targetUserIds.length === 0) {
+      const allUsers = await this.prisma.user.findMany({
+        where: { status: { not: UserStatus.DELETED } },
+        select: { id: true },
+      });
+      targetUserIds = allUsers.map((u) => u.id);
+    }
+
+    await this.notificationsService.sendBulk(targetUserIds, type, title, body);
 
     await this.prisma.adminAction.create({
       data: {
         adminId,
         action: 'SEND_BULK_NOTIFICATION',
-        metadata: { userCount: userIds.length, type, title } as Prisma.InputJsonValue,
+        metadata: { userCount: targetUserIds.length, type, title, body } as Prisma.InputJsonValue,
       },
     });
 
-    this.logger.log(`Admin ${adminId} sent bulk notification to ${userIds.length} users`);
+    this.logger.log(`Admin ${adminId} sent bulk notification to ${targetUserIds.length} users`);
+    return { sentCount: targetUserIds.length };
   }
 }

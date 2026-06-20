@@ -1,25 +1,30 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Bell, Send } from 'lucide-react';
-import { api } from '../../../lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Bell, Send, CheckCircle } from 'lucide-react';
+import api from '../../../lib/api';
+import ErrorCard from '../../../components/error-card';
 
 export default function NotificationsPage() {
-  const [form, setForm] = useState({ title: '', body: '', type: 'INFO' });
-  const [sending, setSending] = useState(false);
+  const [form, setForm] = useState({ title: '', body: '', type: 'SYSTEM' });
+  const [successMsg, setSuccessMsg] = useState('');
+  const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-notifications'],
     queryFn: () => api.get('/admin/notifications').then((r) => r.data),
   });
 
   const mutation = useMutation({
     mutationFn: (payload: typeof form) =>
-      api.post('/admin/notifications/bulk', { ...payload, userIds: [] }),
-    onSuccess: () => {
-      setForm({ title: '', body: '', type: 'INFO' });
-      setSending(false);
+      api.post('/admin/notifications/bulk', payload),
+    onSuccess: (res) => {
+      const sentCount = res.data?.sentCount ?? 0;
+      setSuccessMsg(`${sentCount} ta foydalanuvchiga yuborildi`);
+      setForm({ title: '', body: '', type: 'SYSTEM' });
+      qc.invalidateQueries({ queryKey: ['admin-notifications'] });
+      setTimeout(() => setSuccessMsg(''), 4000);
     },
   });
 
@@ -43,7 +48,7 @@ export default function NotificationsPage() {
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value })}
             >
-              {['INFO', 'PROMO', 'SECURITY', 'SYSTEM'].map((t) => (
+              {['SYSTEM', 'PAYMENT', 'SUBSCRIPTION', 'SUPPORT', 'SECURITY', 'PROMO'].map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
@@ -67,22 +72,32 @@ export default function NotificationsPage() {
             />
           </div>
         </div>
-        <div className="mt-4 flex justify-end">
-          <button
-            onClick={() => { setSending(true); mutation.mutate(form); }}
-            disabled={!form.title || !form.body || mutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            <Send size={14} />
-            {mutation.isPending ? 'Yuborilmoqda...' : 'Yuborish'}
-          </button>
+        <div className="mt-4 flex items-center justify-between">
+          <p className="text-xs text-gray-400">Barcha foydalanuvchilarga yuboriladi</p>
+          <div className="flex items-center gap-3">
+            {successMsg && (
+              <span className="flex items-center gap-1 text-sm text-green-600">
+                <CheckCircle size={14} /> {successMsg}
+              </span>
+            )}
+            <button
+              onClick={() => mutation.mutate(form)}
+              disabled={!form.title || !form.body || mutation.isPending}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              <Send size={14} />
+              {mutation.isPending ? 'Yuborilmoqda...' : 'Yuborish'}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="text-base font-semibold text-gray-700 mb-4">So&apos;nggi bildirishnomalar</h2>
-        {isLoading ? (
+        {isError ? (
+          <ErrorCard message="Bildirishnomalar tarixini yuklashda xatolik" onRetry={() => refetch()} />
+        ) : isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-8 bg-gray-100 rounded animate-pulse" />

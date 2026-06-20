@@ -3,14 +3,15 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Settings, Save } from 'lucide-react';
-import { api } from '../../../lib/api';
+import api from '../../../lib/api';
+import ErrorCard from '../../../components/error-card';
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const [editKey, setEditKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-settings'],
     queryFn: () => api.get('/admin/settings').then((r) => r.data),
   });
@@ -30,6 +31,10 @@ export default function SettingsPage() {
         <Settings size={22} className="text-gray-600" />
         <h1 className="text-2xl font-bold text-gray-800">Sozlamalar</h1>
       </div>
+
+      {isError && (
+        <ErrorCard message="Sozlamalarni yuklashda xatolik" onRetry={() => refetch()} />
+      )}
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {isLoading ? (
