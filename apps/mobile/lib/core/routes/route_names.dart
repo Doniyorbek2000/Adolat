@@ -15,6 +15,7 @@ class RouteNames {
   static const String documentGenerator = 'documentGenerator';
   static const String subscription = 'subscription';
   static const String profile = 'profile';
+  static const String voice = 'voice';
   static const String createTicket = 'createTicket';
   static const String ticketDetail = 'ticketDetail';
 }

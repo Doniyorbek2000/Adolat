@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/routes/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -415,13 +416,13 @@ class _GeneratedDocumentsListTab extends ConsumerWidget {
   }
 }
 
-class _GeneratedDocTile extends StatelessWidget {
+class _GeneratedDocTile extends ConsumerWidget {
   final GeneratedDocumentModel doc;
 
   const _GeneratedDocTile({required this.doc});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dateStr =
         DateFormat('dd.MM.yyyy').format(doc.createdAt.toLocal());
     return ListTile(
@@ -455,12 +456,13 @@ class _GeneratedDocTile extends StatelessWidget {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2)),
       onTap: doc.content?.isNotEmpty == true
-          ? () => _showContent(context, doc)
+          ? () => _showContent(context, ref, doc)
           : null,
     );
   }
 
-  void _showContent(BuildContext context, GeneratedDocumentModel doc) {
+  void _showContent(
+      BuildContext context, WidgetRef ref, GeneratedDocumentModel doc) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -471,72 +473,169 @@ class _GeneratedDocTile extends StatelessWidget {
         initialChildSize: 0.75,
         maxChildSize: 0.95,
         expand: false,
-        builder: (_, controller) => Column(
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                doc.documentTypeLabel,
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                controller: controller,
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                child: Text(
-                  doc.content ?? '',
-                  style: const TextStyle(fontSize: 13, height: 1.6),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('PDF eksport tez orada...')),
-                        );
-                      },
-                      icon: const Icon(Icons.picture_as_pdf_outlined),
-                      label: const Text('PDF'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('DOCX eksport tez orada...')),
-                        );
-                      },
-                      icon: const Icon(Icons.description_outlined),
-                      label: const Text('DOCX'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        builder: (_, controller) => _GeneratedDocContentSheet(
+          doc: doc,
+          scrollController: controller,
+          parentContext: context,
+          ref: ref,
         ),
       ),
+    );
+  }
+}
+
+class _GeneratedDocContentSheet extends StatefulWidget {
+  final GeneratedDocumentModel doc;
+  final ScrollController scrollController;
+  final BuildContext parentContext;
+  final WidgetRef ref;
+
+  const _GeneratedDocContentSheet({
+    required this.doc,
+    required this.scrollController,
+    required this.parentContext,
+    required this.ref,
+  });
+
+  @override
+  State<_GeneratedDocContentSheet> createState() =>
+      _GeneratedDocContentSheetState();
+}
+
+class _GeneratedDocContentSheetState
+    extends State<_GeneratedDocContentSheet> {
+  bool _isExportingPdf = false;
+  bool _isExportingDocx = false;
+
+  Future<void> _exportPdf() async {
+    setState(() => _isExportingPdf = true);
+    try {
+      final dataSource =
+          widget.ref.read(documentsRemoteDataSourceProvider);
+      final filePath = await dataSource.exportPdf(widget.doc.id);
+      if (!mounted) return;
+      Navigator.pop(context);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(filePath, mimeType: 'application/pdf')],
+          title: '${widget.doc.documentTypeLabel}.pdf',
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+        SnackBar(
+          content: Text('PDF eksport xatoligi: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isExportingPdf = false);
+    }
+  }
+
+  Future<void> _exportDocx() async {
+    setState(() => _isExportingDocx = true);
+    try {
+      final dataSource =
+          widget.ref.read(documentsRemoteDataSourceProvider);
+      final filePath = await dataSource.exportDocx(widget.doc.id);
+      if (!mounted) return;
+      Navigator.pop(context);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(
+              filePath,
+              mimeType:
+                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            ),
+          ],
+          title: '${widget.doc.documentTypeLabel}.docx',
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+        SnackBar(
+          content: Text('DOCX eksport xatoligi: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isExportingDocx = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const SizedBox(height: 8),
+        Container(
+          width: 36,
+          height: 4,
+          decoration: BoxDecoration(
+            color: AppColors.border,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            widget.doc.documentTypeLabel,
+            style: const TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            controller: widget.scrollController,
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Text(
+              widget.doc.content ?? '',
+              style: const TextStyle(fontSize: 13, height: 1.6),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isExportingPdf ? null : _exportPdf,
+                  icon: _isExportingPdf
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.picture_as_pdf_outlined),
+                  label: Text(_isExportingPdf ? 'Yuklanmoqda...' : 'PDF'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _isExportingDocx ? null : _exportDocx,
+                  icon: _isExportingDocx
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.description_outlined),
+                  label: Text(_isExportingDocx ? 'Yuklanmoqda...' : 'DOCX'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

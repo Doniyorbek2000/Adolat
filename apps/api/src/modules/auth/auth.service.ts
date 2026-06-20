@@ -13,6 +13,7 @@ import { OtpType, Prisma, User } from '@prisma/client';
 import { AppSettings } from '../../config/app.config';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { EmailService } from '../email/email.service';
 
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
@@ -53,6 +54,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly auditLogsService: AuditLogsService,
+    private readonly emailService: EmailService,
     configService: ConfigService<{ app: AppSettings }, true>,
   ) {
     this.appSettings = configService.get('app', { infer: true });
@@ -125,6 +127,12 @@ export class AuthService {
 
     this.logOtpInDevelopment(target, 'REGISTER', otpCode);
 
+    if (dto.email) {
+      this.emailService.sendOtpEmail(dto.email, otpCode).catch((err) => {
+        this.logger.error(`Register OTP email yuborishda xatolik: ${err.message}`);
+      });
+    }
+
     await this.auditLogsService.createLog({
       userId: user.id,
       action: 'CREATE',
@@ -194,6 +202,16 @@ export class AuthService {
 
     const code = await this.prisma.$transaction((tx) => this.issueOtp(tx, user.id, dto.type));
     this.logOtpInDevelopment(dto.target, dto.type, code);
+
+    if (user.email && dto.target === user.email) {
+      const sendEmail =
+        dto.type === 'PASSWORD_RESET'
+          ? this.emailService.sendPasswordResetEmail(user.email, code)
+          : this.emailService.sendOtpEmail(user.email, code);
+      sendEmail.catch((err) => {
+        this.logger.error(`Resend OTP email yuborishda xatolik: ${err.message}`);
+      });
+    }
 
     return { message };
   }
@@ -344,6 +362,12 @@ export class AuthService {
 
     const code = await this.prisma.$transaction((tx) => this.issueOtp(tx, user.id, 'PASSWORD_RESET'));
     this.logOtpInDevelopment(dto.target, 'PASSWORD_RESET', code);
+
+    if (user.email && dto.target === user.email) {
+      this.emailService.sendPasswordResetEmail(user.email, code).catch((err) => {
+        this.logger.error(`Password reset email yuborishda xatolik: ${err.message}`);
+      });
+    }
 
     return { message };
   }

@@ -17,6 +17,7 @@ import '../../features/support/presentation/screens/create_ticket_screen.dart';
 import '../../features/support/presentation/screens/ticket_detail_screen.dart';
 import '../../features/support/data/models/support_ticket_model.dart';
 import '../../features/chat/data/models/chat_thread_model.dart';
+import '../../features/voice/presentation/screens/voice_screen.dart';
 import 'route_names.dart';
 
 class AppRoutes {
@@ -95,6 +96,11 @@ class AppRoutes {
         path: '/document-generator',
         name: RouteNames.documentGenerator,
         builder: (context, state) => const DocumentGeneratorScreen(),
+      ),
+      GoRoute(
+        path: '/voice',
+        name: RouteNames.voice,
+        builder: (context, state) => const VoiceScreen(),
       ),
       GoRoute(
         path: '/support/create',

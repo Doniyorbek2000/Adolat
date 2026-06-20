@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/network/network_exceptions.dart';
 import '../models/document_analysis_model.dart';
@@ -65,6 +68,61 @@ class DocumentsRemoteDataSource {
       });
       return GeneratedDocumentModel.fromJson(
           response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw mapDioException(e);
+    }
+  }
+
+  /// Export a generated document as PDF.
+  /// GET /generated-documents/:id/export-pdf
+  /// Returns the local file path of the downloaded PDF.
+  Future<String> exportPdf(String documentId) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final filePath = '${tempDir.path}/document_$documentId.pdf';
+      await _dio.download(
+        '/generated-documents/$documentId/export-pdf',
+        filePath,
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {'Accept': 'application/pdf'},
+        ),
+      );
+      // Verify the file was written
+      final file = File(filePath);
+      if (!await file.exists() || await file.length() == 0) {
+        throw const AppException('PDF fayli yuklanmadi');
+      }
+      return filePath;
+    } on DioException catch (e) {
+      throw mapDioException(e);
+    }
+  }
+
+  /// Export a generated document as DOCX.
+  /// GET /generated-documents/:id/export-docx
+  /// Returns the local file path of the downloaded DOCX.
+  Future<String> exportDocx(String documentId) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final filePath = '${tempDir.path}/document_$documentId.docx';
+      await _dio.download(
+        '/generated-documents/$documentId/export-docx',
+        filePath,
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {
+            'Accept':
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          },
+        ),
+      );
+      // Verify the file was written
+      final file = File(filePath);
+      if (!await file.exists() || await file.length() == 0) {
+        throw const AppException('DOCX fayli yuklanmadi');
+      }
+      return filePath;
     } on DioException catch (e) {
       throw mapDioException(e);
     }

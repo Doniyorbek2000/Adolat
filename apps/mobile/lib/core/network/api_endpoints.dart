@@ -10,4 +10,12 @@ class ApiEndpoints {
   static const String authMe = '/auth/me';
   static const String health = '/health';
   static const String dashboardMe = '/dashboard/me';
+
+  // Voice
+  static const String voiceSessions = '/voice/sessions';
+  static String voiceSession(String id) => '/voice/sessions/$id';
+
+  // Document Export
+  static String exportPdf(String id) => '/generated-documents/$id/export-pdf';
+  static String exportDocx(String id) => '/generated-documents/$id/export-docx';
 }

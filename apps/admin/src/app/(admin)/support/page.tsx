@@ -39,6 +39,7 @@ function TicketDetailModal({
   onReplySent: () => void;
 }) {
   const [replyText, setReplyText] = useState('');
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
   const replyMutation = useMutation({
     mutationFn: (body: string) =>
       api.post(`/admin/support/tickets/${ticket.id}/reply`, { body }),
@@ -60,7 +61,11 @@ function TicketDetailModal({
           <div className="flex items-center gap-3">
             <select
               value={ticket.status}
-              onChange={(e) => onStatusChange(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value !== ticket.status) {
+                  setPendingStatus(e.target.value);
+                }
+              }}
               className="text-xs border border-gray-300 rounded-lg px-2 py-1.5"
             >
               <option value="open">Open</option>
@@ -128,6 +133,35 @@ function TicketDetailModal({
           </div>
         </div>
       </div>
+
+      {/* Status Change Confirmation Modal */}
+      {pendingStatus && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-2">Tasdiqlash</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Tiket holatini o&apos;zgartirish tasdiqlaysizmi?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPendingStatus(null)}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Bekor qilish
+              </button>
+              <button
+                onClick={() => {
+                  onStatusChange(pendingStatus);
+                  setPendingStatus(null);
+                }}
+                className="flex-1 py-2 bg-[#1A3A6C] text-white rounded-lg text-sm font-medium hover:bg-[#15305a] transition"
+              >
+                Tasdiqlash
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

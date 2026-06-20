@@ -1,23 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../providers/voice_provider.dart';
 
-enum _VoiceState { idle, recording, processing, answerReady }
-
-class VoiceScreen extends StatefulWidget {
+class VoiceScreen extends ConsumerStatefulWidget {
   const VoiceScreen({super.key});
 
   @override
-  State<VoiceScreen> createState() => _VoiceScreenState();
+  ConsumerState<VoiceScreen> createState() => _VoiceScreenState();
 }
 
-class _VoiceScreenState extends State<VoiceScreen>
+class _VoiceScreenState extends ConsumerState<VoiceScreen>
     with SingleTickerProviderStateMixin {
-  _VoiceState _voiceState = _VoiceState.idle;
-  String? _transcript;
-  String? _answer;
   int _recordSeconds = 0;
   Timer? _recordTimer;
   late AnimationController _pulseController;
@@ -42,88 +39,52 @@ class _VoiceScreenState extends State<VoiceScreen>
     super.dispose();
   }
 
-  void _startRecording() {
-    // Actual recording requires the `record` package. Show informational dialog.
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Ovoz yozish"),
-        content: const Text(
-          "Ovoz yozish funksiyasi uchun qo'shimcha o'rnatish kerak.\n\n"
-          "Hozircha demo rejimida ishlash uchun \"Demo\" tugmasini bosing.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Yopish'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _startDemoRecording();
-            },
-            child: const Text('Demo'),
-          ),
-        ],
-      ),
-    );
-  }
+  Future<void> _startRecording() async {
+    final notifier = ref.read(voiceProvider.notifier);
+    final started = await notifier.startRecording();
+    if (!started) {
+      if (mounted) {
+        final error = ref.read(voiceProvider).error;
+        if (error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(error),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+      return;
+    }
 
-  void _startDemoRecording() {
-    setState(() {
-      _voiceState = _VoiceState.recording;
-      _recordSeconds = 0;
-      _transcript = null;
-      _answer = null;
-    });
+    setState(() => _recordSeconds = 0);
     _pulseController.repeat(reverse: true);
     _recordTimer = Timer.periodic(const Duration(seconds: 1), (t) {
       setState(() => _recordSeconds++);
-      if (_recordSeconds >= 10) {
+      if (_recordSeconds >= 120) {
         _stopRecording();
       }
     });
   }
 
-  void _stopRecording() {
+  Future<void> _stopRecording() async {
     _recordTimer?.cancel();
     _pulseController.stop();
     _pulseController.reset();
-    setState(() => _voiceState = _VoiceState.processing);
 
-    // Simulate transcription + AI answer
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      setState(() {
-        _transcript =
-            "Mehnat shartnomasini buzgan ish beruvchidan qanday qilib kompensatsiya talab qilish mumkin?";
-        _voiceState = _VoiceState.processing;
-      });
-      Future.delayed(const Duration(seconds: 2), () {
-        if (!mounted) return;
-        setState(() {
-          _answer =
-              "O'zbekiston Respublikasi Mehnat Kodeksining 100-moddasiga ko'ra, ish beruvchi tomonidan mehnat shartnomasi shartlari buzilganda, xodim kompensatsiya talab qilish huquqiga ega.\n\n"
-              "Buning uchun quyidagi qadamlarni bajaring:\n"
-              "1. Ish beruvchiga yozma murojaat yuboring\n"
-              "2. Sud orqali da'vo bildiring\n"
-              "3. Mehnat inspeksiyasiga shikoyat qiling";
-          _voiceState = _VoiceState.answerReady;
-        });
-      });
-    });
+    final notifier = ref.read(voiceProvider.notifier);
+    final filePath = await notifier.stopRecording();
+    if (filePath != null) {
+      await notifier.submitAudio(filePath);
+    }
   }
 
   void _reset() {
     _recordTimer?.cancel();
     _pulseController.stop();
     _pulseController.reset();
-    setState(() {
-      _voiceState = _VoiceState.idle;
-      _transcript = null;
-      _answer = null;
-      _recordSeconds = 0;
-    });
+    setState(() => _recordSeconds = 0);
+    ref.read(voiceProvider.notifier).reset();
   }
 
   void _sendToChat() {
@@ -143,12 +104,31 @@ class _VoiceScreenState extends State<VoiceScreen>
 
   @override
   Widget build(BuildContext context) {
+    final voiceState = ref.watch(voiceProvider);
+    final isRecording = voiceState.isRecording;
+    final isProcessing = voiceState.isProcessing;
+    final transcript = voiceState.transcript;
+    final answer = voiceState.answer;
+    final isIdle = !isRecording && !isProcessing && transcript == null && answer == null;
+
+    // Show error snackbar
+    ref.listen<VoiceState>(voiceProvider, (prev, next) {
+      if (next.error != null && next.error != prev?.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.error!),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ovozli yordam'),
         automaticallyImplyLeading: false,
         actions: [
-          if (_voiceState != _VoiceState.idle)
+          if (!isIdle)
             IconButton(
               icon: const Icon(Icons.refresh_outlined),
               onPressed: _reset,
@@ -161,18 +141,16 @@ class _VoiceScreenState extends State<VoiceScreen>
         child: Column(
           children: [
             const SizedBox(height: 16),
-            _buildMicSection(),
+            _buildMicSection(isRecording, isProcessing),
             const SizedBox(height: 32),
-            if (_transcript != null) _buildTranscriptCard(),
-            if (_voiceState == _VoiceState.processing &&
-                _transcript == null)
+            if (transcript != null) _buildTranscriptCard(transcript),
+            if (isProcessing && transcript == null)
               _buildProcessingCard('Ovoz tahlil qilinmoqda...'),
-            if (_voiceState == _VoiceState.processing &&
-                _transcript != null)
+            if (isProcessing && transcript != null)
               _buildProcessingCard('AI javob tayyorlamoqda...'),
-            if (_answer != null) ...[
+            if (answer != null) ...[
               const SizedBox(height: 16),
-              _buildAnswerCard(),
+              _buildAnswerCard(answer),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -192,10 +170,7 @@ class _VoiceScreenState extends State<VoiceScreen>
     );
   }
 
-  Widget _buildMicSection() {
-    final isRecording = _voiceState == _VoiceState.recording;
-    final isProcessing = _voiceState == _VoiceState.processing;
-
+  Widget _buildMicSection(bool isRecording, bool isProcessing) {
     return Column(
       children: [
         ScaleTransition(
@@ -274,37 +249,13 @@ class _VoiceScreenState extends State<VoiceScreen>
                 style: TextStyle(
                     color: AppColors.textSecondary, fontSize: 13),
               ),
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.warningAmber.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: AppColors.warningAmber.withValues(alpha: 0.4)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.info_outline,
-                        size: 14, color: AppColors.warningAmber),
-                    SizedBox(width: 6),
-                    Text(
-                      "Qo'shimcha o'rnatish kerak",
-                      style: TextStyle(
-                          fontSize: 12, color: AppColors.warningAmber),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
       ],
     );
   }
 
-  Widget _buildTranscriptCard() {
+  Widget _buildTranscriptCard(String transcript) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -333,7 +284,7 @@ class _VoiceScreenState extends State<VoiceScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            _transcript!,
+            transcript,
             style: const TextStyle(fontSize: 14, height: 1.45),
           ),
         ],
@@ -358,7 +309,7 @@ class _VoiceScreenState extends State<VoiceScreen>
     );
   }
 
-  Widget _buildAnswerCard() {
+  Widget _buildAnswerCard(String answer) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -402,7 +353,7 @@ class _VoiceScreenState extends State<VoiceScreen>
           ),
           const SizedBox(height: 10),
           Text(
-            _answer!,
+            answer,
             style: const TextStyle(fontSize: 14, height: 1.5),
           ),
         ],

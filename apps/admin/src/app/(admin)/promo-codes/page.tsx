@@ -155,6 +155,10 @@ function CreateModal({
 
 export default function PromoCodesPage() {
   const [showModal, setShowModal] = useState(false);
+  const [confirmToggle, setConfirmToggle] = useState<{
+    id: string;
+    isActive: boolean;
+  } | null>(null);
   const qc = useQueryClient();
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -244,7 +248,7 @@ export default function PromoCodesPage() {
       render: (row) => (
         <button
           onClick={() =>
-            toggleMutation.mutate({ id: row.id, isActive: !row.isActive })
+            setConfirmToggle({ id: row.id, isActive: !row.isActive })
           }
           disabled={toggleMutation.isPending}
           className={`px-3 py-1 text-xs font-medium rounded-md transition ${
@@ -295,6 +299,38 @@ export default function PromoCodesPage() {
           onSubmit={(data) => createMutation.mutate(data)}
           loading={createMutation.isPending}
         />
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmToggle && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-2">Tasdiqlash</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Promo kod holatini o&apos;zgartirish tasdiqlaysizmi?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmToggle(null)}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Bekor qilish
+              </button>
+              <button
+                onClick={() => {
+                  toggleMutation.mutate({
+                    id: confirmToggle.id,
+                    isActive: confirmToggle.isActive,
+                  });
+                  setConfirmToggle(null);
+                }}
+                className="flex-1 py-2 bg-[#1A3A6C] text-white rounded-lg text-sm font-medium hover:bg-[#15305a] transition"
+              >
+                Tasdiqlash
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

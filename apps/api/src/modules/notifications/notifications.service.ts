@@ -2,12 +2,16 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Notification, NotificationType, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../database/prisma/prisma.service';
+import { PushService } from '../push/push.service';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pushService: PushService,
+  ) {}
 
   async getUserNotifications(userId: string): Promise<Notification[]> {
     return this.prisma.notification.findMany({
@@ -52,7 +56,7 @@ export class NotificationsService {
     body: string,
     metadata?: Record<string, unknown>,
   ): Promise<Notification> {
-    return this.prisma.notification.create({
+    const notification = await this.prisma.notification.create({
       data: {
         userId,
         type,
@@ -61,6 +65,29 @@ export class NotificationsService {
         metadata: (metadata ?? undefined) as Prisma.InputJsonValue | undefined,
       },
     });
+
+    this.sendPushToUser(userId, title, body).catch((err) => {
+      this.logger.error(`Push bildirishnoma yuborishda xatolik: ${err.message}`);
+    });
+
+    return notification;
+  }
+
+  private async sendPushToUser(userId: string, title: string, body: string): Promise<void> {
+    const devices = await this.prisma.deviceFingerprint.findMany({
+      where: { userId, pushToken: { not: null } },
+      select: { pushToken: true },
+    });
+
+    const tokens = devices
+      .map((d) => d.pushToken)
+      .filter((t): t is string => !!t);
+
+    if (tokens.length === 0) {
+      return;
+    }
+
+    await this.pushService.sendToMultipleDevices(tokens, title, body);
   }
 
   async sendBulk(

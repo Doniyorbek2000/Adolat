@@ -28,6 +28,10 @@ const statusBadge = (status: string) => {
 export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [confirmAction, setConfirmAction] = useState<{
+    type: 'block' | 'unblock';
+    userId: string;
+  } | null>(null);
   const qc = useQueryClient();
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -89,7 +93,7 @@ export default function UsersPage() {
         <div className="flex gap-2">
           {row.status === 'blocked' ? (
             <button
-              onClick={() => unblockMutation.mutate(row.id)}
+              onClick={() => setConfirmAction({ type: 'unblock', userId: row.id })}
               disabled={unblockMutation.isPending}
               className="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 rounded-md transition disabled:opacity-50"
             >
@@ -97,7 +101,7 @@ export default function UsersPage() {
             </button>
           ) : (
             <button
-              onClick={() => blockMutation.mutate(row.id)}
+              onClick={() => setConfirmAction({ type: 'block', userId: row.id })}
               disabled={blockMutation.isPending}
               className="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200 rounded-md transition disabled:opacity-50"
             >
@@ -178,6 +182,45 @@ export default function UsersPage() {
             >
               Next
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-2">Tasdiqlash</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              {confirmAction.type === 'block'
+                ? "Foydalanuvchini bloklashni tasdiqlaysizmi?"
+                : "Foydalanuvchini blokdan chiqarishni tasdiqlaysizmi?"}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Bekor qilish
+              </button>
+              <button
+                onClick={() => {
+                  if (confirmAction.type === 'block') {
+                    blockMutation.mutate(confirmAction.userId);
+                  } else {
+                    unblockMutation.mutate(confirmAction.userId);
+                  }
+                  setConfirmAction(null);
+                }}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium text-white transition ${
+                  confirmAction.type === 'block'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                Tasdiqlash
+              </button>
+            </div>
           </div>
         </div>
       )}

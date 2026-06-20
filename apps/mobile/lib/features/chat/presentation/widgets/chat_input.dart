@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/routes/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class ChatInput extends StatefulWidget {
@@ -63,20 +65,13 @@ class _ChatInputState extends State<ChatInput> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // Mic button placeholder
+          // Mic button — navigates to voice screen
           IconButton(
             icon: const Icon(Icons.mic_none_outlined),
             color: AppColors.textSecondary,
             onPressed: widget.isLoading
                 ? null
-                : () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Ovozli kiritish tez orada...'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
+                : () => context.pushNamed(RouteNames.voice),
           ),
           // Text field
           Expanded(
