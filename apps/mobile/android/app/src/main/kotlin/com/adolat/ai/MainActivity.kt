@@ -1,4 +1,4 @@
-package com.adolat.ai.adolat_ai
+package com.adolat.ai
 
 import io.flutter.embedding.android.FlutterActivity
 
