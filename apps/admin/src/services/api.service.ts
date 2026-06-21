@@ -15,6 +15,7 @@ import {
   AiConfig,
   PaginatedResponse,
   AiRequestDataPoint,
+  Notification,
 } from '../types';
 
 // ─── Dashboard / Analytics ────────────────────────────────────────────────────
@@ -180,12 +181,34 @@ export async function deleteLegalDocument(id: string): Promise<void> {
   await api.delete(`/admin/legal-documents/${id}`);
 }
 
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+export async function fetchAdminNotifications(
+  page = 1,
+  limit = 20
+): Promise<{ notifications: Notification[] }> {
+  const res = await api.get('/admin/notifications', {
+    params: { page, limit },
+  });
+  return res.data;
+}
+
+export async function sendBulkNotification(data: {
+  title: string;
+  body: string;
+  type: string;
+}): Promise<{ sentCount: number }> {
+  const res = await api.post('/admin/notifications/bulk', data);
+  return res.data;
+}
+
 // ─── Support ──────────────────────────────────────────────────────────────────
 
 export async function fetchSupportTickets(params?: {
   page?: number;
   limit?: number;
   status?: string;
+  priority?: string;
 }): Promise<PaginatedResponse<SupportTicket>> {
   const res = await api.get('/admin/support/tickets', { params });
   return res.data;
@@ -202,6 +225,13 @@ export async function updateTicketStatus(
 ): Promise<SupportTicket> {
   const res = await api.patch(`/admin/support/tickets/${id}`, { status });
   return res.data;
+}
+
+export async function sendSupportTicketReply(
+  ticketId: string,
+  body: string
+): Promise<void> {
+  await api.post(`/admin/support/tickets/${ticketId}/reply`, { body });
 }
 
 // ─── Audit Logs ───────────────────────────────────────────────────────────────

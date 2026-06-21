@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/routes/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_loader.dart';
 import '../../data/models/dashboard_model.dart';
@@ -46,7 +48,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           if (state.isLoaded)
             IconButton(
               icon: const Icon(Icons.notifications_none_outlined),
-              onPressed: () {},
+              onPressed: () => context.pushNamed(RouteNames.notifications),
             ),
         ],
       ),
@@ -122,25 +124,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         label: 'Savol\nbering',
         icon: Icons.chat_bubble_outline,
         color: AppColors.secondary,
-        onTap: () {},
+        onTap: () => context.pushNamed(RouteNames.chatThread, pathParameters: {'threadId': 'new'}),
       ),
       QuickAction(
         label: 'Hujjat\ntahlil',
         icon: Icons.document_scanner_outlined,
         color: AppColors.warningAmber,
-        onTap: () {},
+        onTap: () => context.pushNamed(RouteNames.documentAnalysis),
       ),
       QuickAction(
         label: 'Ariza\nyaratish',
         icon: Icons.article_outlined,
         color: AppColors.success,
-        onTap: () {},
+        onTap: () => context.pushNamed(RouteNames.documentGenerator),
       ),
       QuickAction(
         label: 'Ovozli\nyordam',
         icon: Icons.mic_none_outlined,
         color: AppColors.error,
-        onTap: () {},
+        onTap: () => context.pushNamed(RouteNames.voice),
       ),
     ];
   }

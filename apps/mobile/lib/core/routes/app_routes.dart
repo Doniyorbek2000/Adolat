@@ -13,6 +13,9 @@ import '../../features/home/presentation/screens/main_shell_screen.dart';
 import '../../features/language/presentation/screens/language_selection_screen.dart';
 import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
+import '../../features/notifications/presentation/screens/notifications_screen.dart';
+import '../../features/payment/presentation/screens/payment_screen.dart';
+import '../../features/support/presentation/screens/support_screen.dart';
 import '../../features/support/presentation/screens/create_ticket_screen.dart';
 import '../../features/support/presentation/screens/ticket_detail_screen.dart';
 import '../../features/support/data/models/support_ticket_model.dart';
@@ -83,8 +86,15 @@ class AppRoutes {
         name: RouteNames.chatThread,
         builder: (context, state) {
           final threadId = state.pathParameters['threadId']!;
-          final thread = state.extra as ChatThreadModel?;
-          return ChatThreadScreen(threadId: threadId, initialThread: thread);
+          final extra = state.extra;
+          final ChatThreadModel? thread =
+              extra is ChatThreadModel ? extra : null;
+          final String? initialMessage = extra is String ? extra : null;
+          return ChatThreadScreen(
+            threadId: threadId,
+            initialThread: thread,
+            initialMessage: initialMessage,
+          );
         },
       ),
       GoRoute(
@@ -101,6 +111,29 @@ class AppRoutes {
         path: '/voice',
         name: RouteNames.voice,
         builder: (context, state) => const VoiceScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        name: RouteNames.notifications,
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/payment',
+        name: RouteNames.payment,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return PaymentScreen(
+            planId: extra['planId'] as String? ?? '',
+            planName: extra['planName'] as String? ?? '',
+            price: (extra['price'] as num?)?.toDouble() ?? 0,
+            features: (extra['features'] as List<String>?) ?? const [],
+          );
+        },
+      ),
+      GoRoute(
+        path: '/support',
+        name: RouteNames.support,
+        builder: (context, state) => const SupportScreen(),
       ),
       GoRoute(
         path: '/support/create',

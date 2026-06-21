@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Settings, Save } from 'lucide-react';
 import api from '../../../lib/api';
 import ErrorCard from '../../../components/error-card';
+import { SystemSetting } from '../../../types';
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -53,7 +54,7 @@ export default function SettingsPage() {
               </tr>
             </thead>
             <tbody>
-              {(data?.settings ?? []).map((s: Record<string, string>) => (
+              {(data?.settings ?? []).map((s: SystemSetting) => (
                 <tr key={s.key} className="border-t border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4 font-mono text-xs text-gray-700">{s.key}</td>
                   <td className="py-3 px-4">

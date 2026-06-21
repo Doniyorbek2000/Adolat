@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, Send, CheckCircle } from 'lucide-react';
 import api from '../../../lib/api';
 import ErrorCard from '../../../components/error-card';
+import { Notification } from '../../../types';
 
 export default function NotificationsPage() {
   const [form, setForm] = useState({ title: '', body: '', type: 'SYSTEM' });
@@ -114,7 +115,7 @@ export default function NotificationsPage() {
                 </tr>
               </thead>
               <tbody>
-                {(data?.notifications ?? []).map((n: Record<string, string>) => (
+                {(data?.notifications ?? []).map((n: Notification) => (
                   <tr key={n.id} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="py-2 px-3">
                       <span className="px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700">{n.type}</span>

@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Shield } from 'lucide-react';
 import api from '../../../lib/api';
 import ErrorCard from '../../../components/error-card';
+import { AuditLog } from '../../../types';
 
 export default function AuditLogsPage() {
   const [page, setPage] = useState(1);
@@ -67,7 +68,7 @@ export default function AuditLogsPage() {
                       ))}
                     </tr>
                   ))
-                : (data?.logs ?? []).map((log: Record<string, string>) => (
+                : (data?.data ?? []).map((log: AuditLog) => (
                     <tr key={log.id} className="border-t border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -82,7 +83,7 @@ export default function AuditLogsPage() {
                       <td className="py-3 px-4 text-gray-400">{new Date(log.createdAt).toLocaleString()}</td>
                     </tr>
                   ))}
-              {!isLoading && !data?.logs?.length && (
+              {!isLoading && !data?.data?.length && (
                 <tr><td colSpan={5} className="py-8 text-center text-gray-400">Loglar topilmadi</td></tr>
               )}
             </tbody>
@@ -90,9 +91,9 @@ export default function AuditLogsPage() {
         </div>
 
         {/* Pagination */}
-        {data?.total > 20 && (
+        {(data?.total ?? 0) > 20 && (
           <div className="flex justify-between items-center px-4 py-3 border-t border-gray-100">
-            <span className="text-xs text-gray-500">Jami: {data.total}</span>
+            <span className="text-xs text-gray-500">Jami: {data?.total}</span>
             <div className="flex gap-2">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -104,7 +105,7 @@ export default function AuditLogsPage() {
               <span className="px-3 py-1 text-sm text-gray-600">{page}</span>
               <button
                 onClick={() => setPage((p) => p + 1)}
-                disabled={page * 20 >= data.total}
+                disabled={page * 20 >= (data?.total ?? 0)}
                 className="px-3 py-1 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
               >
                 Keyingi

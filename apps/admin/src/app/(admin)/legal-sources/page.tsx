@@ -10,8 +10,8 @@ import {
   syncLegalSource,
   toggleLegalSource,
   createLegalSource,
+  deleteLegalSource,
 } from '../../../services/api.service';
-import api from '../../../lib/api';
 
 const statusBadge = (status: string) => {
   const map: Record<string, string> = {
@@ -159,7 +159,7 @@ export default function LegalSourcesPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/admin/legal-sources/${id}`),
+    mutationFn: (id: string) => deleteLegalSource(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['legal-sources'] });
       setDeleteTargetId(null);

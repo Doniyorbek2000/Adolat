@@ -16,6 +16,9 @@ class RouteNames {
   static const String subscription = 'subscription';
   static const String profile = 'profile';
   static const String voice = 'voice';
+  static const String notifications = 'notifications';
+  static const String payment = 'payment';
+  static const String support = 'support';
   static const String createTicket = 'createTicket';
   static const String ticketDetail = 'ticketDetail';
 }

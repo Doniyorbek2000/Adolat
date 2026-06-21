@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/routes/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../providers/voice_provider.dart';
 
@@ -88,11 +90,14 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen>
   }
 
   void _sendToChat() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Suhbatga yuborildi"),
-        backgroundColor: AppColors.success,
-      ),
+    final voiceState = ref.read(voiceProvider);
+    final transcript = voiceState.transcript;
+    if (transcript == null || transcript.isEmpty) return;
+
+    context.pushNamed(
+      RouteNames.chatThread,
+      pathParameters: {'threadId': 'new'},
+      extra: transcript,
     );
   }
 

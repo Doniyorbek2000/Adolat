@@ -13,11 +13,13 @@ import '../widgets/follow_up_actions.dart';
 class ChatThreadScreen extends ConsumerStatefulWidget {
   final String threadId;
   final ChatThreadModel? initialThread;
+  final String? initialMessage;
 
   const ChatThreadScreen({
     super.key,
     required this.threadId,
     this.initialThread,
+    this.initialMessage,
   });
 
   @override
@@ -35,7 +37,12 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     if (widget.initialThread != null) {
       notifier.setThread(widget.initialThread!);
     }
-    Future.microtask(() => notifier.loadMessages());
+    Future.microtask(() async {
+      await notifier.loadMessages();
+      if (widget.initialMessage != null && widget.initialMessage!.isNotEmpty) {
+        _sendMessage(widget.initialMessage!);
+      }
+    });
   }
 
   @override

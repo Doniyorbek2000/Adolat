@@ -95,9 +95,8 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
         final ticket = state.tickets[index];
         return _TicketCard(
           ticket: ticket,
-          onTap: () => context.goNamed(
+          onTap: () => context.pushNamed(
             RouteNames.ticketDetail,
-            pathParameters: {'id': ticket.id},
             extra: ticket,
           ),
         );

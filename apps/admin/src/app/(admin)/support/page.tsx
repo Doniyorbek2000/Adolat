@@ -6,11 +6,11 @@ import { X, MessageSquare, Send } from 'lucide-react';
 import DataTable, { Column } from '../../../components/data-table';
 import ErrorCard from '../../../components/error-card';
 import { SupportTicket } from '../../../types';
-import api from '../../../lib/api';
 import {
   fetchSupportTickets,
   fetchTicketDetail,
   updateTicketStatus,
+  sendSupportTicketReply,
 } from '../../../services/api.service';
 
 const statusColors: Record<string, string> = {
@@ -42,7 +42,7 @@ function TicketDetailModal({
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
   const replyMutation = useMutation({
     mutationFn: (body: string) =>
-      api.post(`/admin/support/tickets/${ticket.id}/reply`, { body }),
+      sendSupportTicketReply(ticket.id, body),
     onSuccess: () => {
       setReplyText('');
       onReplySent();
@@ -169,11 +169,22 @@ function TicketDetailModal({
 export default function SupportPage() {
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
   const qc = useQueryClient();
 
+  const limit = 20;
+
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['support-tickets'],
-    queryFn: () => fetchSupportTickets({ limit: 50 }),
+    queryKey: ['support-tickets', page, statusFilter, priorityFilter],
+    queryFn: () =>
+      fetchSupportTickets({
+        page,
+        limit,
+        status: statusFilter || undefined,
+        priority: priorityFilter || undefined,
+      }),
   });
 
   const detailQuery = useQuery({
@@ -188,6 +199,7 @@ export default function SupportPage() {
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       updateTicketStatus(id, status),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['support-tickets'] }),
+    onError: () => qc.invalidateQueries({ queryKey: ['support-tickets'] }),
   });
 
   function handleOpenTicket(ticket: SupportTicket) {
@@ -280,6 +292,38 @@ export default function SupportPage() {
         </p>
       </div>
 
+      {/* Filters */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 flex gap-4 flex-wrap">
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Status</label>
+          <select
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A6C]"
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+          >
+            <option value="">Barchasi</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Priority</label>
+          <select
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A3A6C]"
+            value={priorityFilter}
+            onChange={(e) => { setPriorityFilter(e.target.value); setPage(1); }}
+          >
+            <option value="">Barchasi</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+      </div>
+
       {isError && (
         <ErrorCard message="Tiketlarni yuklashda xatolik" onRetry={() => refetch()} />
       )}
@@ -291,6 +335,30 @@ export default function SupportPage() {
         emptyMessage="No support tickets."
         keyExtractor={(row) => row.id}
       />
+
+      {/* Pagination */}
+      {data && data.total > limit && (
+        <div className="bg-white rounded-xl border border-gray-200 flex justify-between items-center px-4 py-3">
+          <span className="text-xs text-gray-500">Jami: {data.total}</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
+            >
+              Oldingi
+            </button>
+            <span className="px-3 py-1 text-sm text-gray-600">{page}</span>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page * limit >= data.total}
+              className="px-3 py-1 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
+            >
+              Keyingi
+            </button>
+          </div>
+        </div>
+      )}
 
       {displayTicket && (
         <TicketDetailModal

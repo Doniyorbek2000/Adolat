@@ -70,11 +70,6 @@ class BulkNotificationDto {
 
 // ─── Controller ──────────────────────────────────────────────────────────────
 
-@ApiTags('admin')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
-@Controller('admin')
 class AdminReplyDto {
   @ApiProperty({ minLength: 1 })
   @IsString()
@@ -82,6 +77,11 @@ class AdminReplyDto {
   body!: string;
 }
 
+@ApiTags('admin')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN')
+@Controller('admin')
 export class AdminAnalyticsController {
   constructor(
     private readonly adminService: AdminAnalyticsService,

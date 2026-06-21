@@ -83,5 +83,30 @@
   "subscription_none": "Нет подписки",
   "days_left": "Осталось {days} дней",
   "no_chats_yet": "Чатов пока нет",
-  "no_documents_yet": "Документов пока нет"
+  "no_documents_yet": "Документов пока нет",
+
+  "notifications": "Уведомления",
+  "no_notifications": "Уведомлений нет",
+  "mark_all_read": "Отметить все как прочитанные",
+
+  "support": "Поддержка",
+  "new_ticket": "Новое обращение",
+  "no_tickets": "Обращений нет. Отправьте ваше первое обращение.",
+
+  "payment": "Оплата",
+  "select_payment_method": "Выберите способ оплаты",
+  "start_payment": "Начать оплату",
+  "payment_success": "Оплата успешно выполнена",
+  "promo_code": "Промо код",
+  "apply_promo": "Применить",
+
+  "profile_title": "Профиль",
+  "change_language": "Изменить язык",
+  "change_password": "Изменить пароль",
+  "about_app": "О приложении",
+  "privacy_policy": "Политика конфиденциальности",
+  "terms_of_use": "Условия использования",
+  "logout_confirm": "Вы хотите выйти из аккаунта?",
+  "logout_confirm_yes": "Да, выйти",
+  "logout_confirm_no": "Отмена"
 }

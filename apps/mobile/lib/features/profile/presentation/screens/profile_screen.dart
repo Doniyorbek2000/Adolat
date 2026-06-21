@@ -137,6 +137,19 @@ class ProfileScreen extends ConsumerWidget {
               mode: LaunchMode.externalApplication,
             ),
           ),
+          const SizedBox(height: 20),
+
+          _SectionLabel(label: LocaleKeys.support.tr()),
+          _ProfileTile(
+            icon: Icons.support_agent_outlined,
+            title: LocaleKeys.support.tr(),
+            onTap: () => context.pushNamed(RouteNames.support),
+          ),
+          _ProfileTile(
+            icon: Icons.notifications_outlined,
+            title: LocaleKeys.notifications.tr(),
+            onTap: () => context.pushNamed(RouteNames.notifications),
+          ),
           const SizedBox(height: 32),
 
           // Logout button

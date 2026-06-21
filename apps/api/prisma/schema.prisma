@@ -445,7 +445,7 @@ model Subscription {
   updatedAt          DateTime           @updatedAt @map("updated_at")
 
   user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan          SubscriptionPlan @relation(fields: [planId], references: [id])
+  plan          SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
   usageCounters UsageCounter[]
   invoices      Invoice[]
 
@@ -522,7 +522,7 @@ model Invoice {
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
   user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan         SubscriptionPlan? @relation(fields: [planId], references: [id])
+  plan         SubscriptionPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
   subscription Subscription?     @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   payments     Payment[]
 

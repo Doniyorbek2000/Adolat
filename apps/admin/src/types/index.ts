@@ -110,6 +110,8 @@ export interface AuditLog {
   action: string;
   entityType: string;
   entityId: string;
+  adminId?: string;
+  userId?: string;
   createdAt: string;
   ipAddress?: string;
   user: {
@@ -152,6 +154,14 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+export interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  createdAt: string;
 }
 
 export type LegalDocIndexingStatus = 'PENDING' | 'INDEXING' | 'INDEXED' | 'FAILED';

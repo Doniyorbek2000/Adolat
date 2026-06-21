@@ -83,5 +83,30 @@
   "subscription_none": "Obuna yo'q",
   "days_left": "{days} kun qoldi",
   "no_chats_yet": "Hali chat yo'q",
-  "no_documents_yet": "Hali hujjat yo'q"
+  "no_documents_yet": "Hali hujjat yo'q",
+
+  "notifications": "Bildirishnomalar",
+  "no_notifications": "Bildirishnomalar yo'q",
+  "mark_all_read": "Hammasini o'qilgan deb belgilash",
+
+  "support": "Yordam",
+  "new_ticket": "Yangi murojaat",
+  "no_tickets": "Murojaatlar yo'q. Birinchi murojaatingizni yuboring.",
+
+  "payment": "To'lov",
+  "select_payment_method": "To'lov usulini tanlang",
+  "start_payment": "To'lovni boshlash",
+  "payment_success": "To'lov muvaffaqiyatli amalga oshirildi",
+  "promo_code": "Promo kod",
+  "apply_promo": "Qo'llash",
+
+  "profile_title": "Profil",
+  "change_language": "Tilni o'zgartirish",
+  "change_password": "Parolni o'zgartirish",
+  "about_app": "Ilova haqida",
+  "privacy_policy": "Maxfiylik siyosati",
+  "terms_of_use": "Foydalanish shartlari",
+  "logout_confirm": "Hisobingizdan chiqishni xohlaysizmi?",
+  "logout_confirm_yes": "Ha, chiqish",
+  "logout_confirm_no": "Bekor qilish"
 }

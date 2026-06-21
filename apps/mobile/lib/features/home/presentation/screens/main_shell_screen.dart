@@ -5,11 +5,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/localization/locale_keys.dart';
 import '../../../../core/routes/route_names.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/providers/auth_state.dart';
 import '../../../chat/presentation/screens/chat_list_screen.dart';
 import '../../../documents/presentation/screens/documents_screen.dart';
+import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../subscription/presentation/screens/subscription_screen.dart';
 import 'home_screen.dart';
 
@@ -41,7 +41,7 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
       const ChatListScreen(),
       const DocumentsScreen(),
       const SubscriptionScreen(),
-      _ProfileTab(user: authState.user!),
+      const ProfileScreen(),
     ];
 
     return Scaffold(
@@ -81,53 +81,3 @@ class _MainShellScreenState extends ConsumerState<MainShellScreen> {
   }
 }
 
-class _ProfileTab extends ConsumerWidget {
-  final dynamic user;
-  const _ProfileTab({required this.user});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Profil'), automaticallyImplyLeading: false),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Center(
-            child: CircleAvatar(
-              radius: 40,
-              backgroundColor: AppColors.primary,
-              child: Text(
-                user.firstName.isNotEmpty ? user.firstName[0].toUpperCase() : 'U',
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 28, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Center(
-            child: Text(
-              user.fullName,
-              style:
-                  Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-            ),
-          ),
-          if (user.phone != null)
-            Center(child: Text(user.phone!, style: TextStyle(color: AppColors.textSecondary))),
-          if (user.email != null)
-            Center(child: Text(user.email!, style: TextStyle(color: AppColors.textSecondary))),
-          const SizedBox(height: 32),
-          ListTile(
-            leading: const Icon(Icons.logout, color: AppColors.error),
-            title: Text(LocaleKeys.logout.tr(),
-                style: const TextStyle(color: AppColors.error)),
-            onTap: () async {
-              await ref.read(authStateProvider.notifier).logout();
-            },
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            tileColor: AppColors.error.withValues(alpha: 0.05),
-          ),
-        ],
-      ),
-    );
-  }
-}

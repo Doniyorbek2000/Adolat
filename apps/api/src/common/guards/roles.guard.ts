@@ -5,11 +5,6 @@ import { RequestUser } from '../decorators/current-user.decorator';
 
 export const ROLES_KEY = 'roles';
 
-/**
- * Joriy bosqichda ishlatilmaydi — admin/RBAC bosqichida `@Roles('ADMIN', ...)`
- * dekoratori bilan birga ulanadi. Hozircha har doim ruxsat beradi (placeholder),
- * `JwtAuthGuard`dan keyin global yoki route darajasida ulash uchun tayyor turibdi.
- */
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
