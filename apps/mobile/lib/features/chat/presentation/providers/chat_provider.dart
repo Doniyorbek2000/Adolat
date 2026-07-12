@@ -142,4 +142,81 @@ class ChatThreadNotifier extends StateNotifier<ChatThreadState> {
           errorMessage: 'Xatolik yuz berdi');
     }
   }
+
+  /// Javobni SSE oqimi sifatida oladi — token'lar kelib turgani sari
+  /// assistant xabari real vaqtda yangilanadi.
+  Future<void> sendMessageStream(String question, String language) async {
+    if (state.isSending) return;
+    state = state.copyWith(isSending: true, clearError: true);
+
+    final now = DateTime.now();
+    final userMsg = ChatMessageModel(
+      id: 'local-user-${now.millisecondsSinceEpoch}',
+      threadId: _threadId,
+      role: 'USER',
+      content: question,
+      citations: const [],
+      createdAt: now,
+    );
+    final assistantId = 'local-assistant-${now.millisecondsSinceEpoch}';
+
+    var assistantContent = '';
+    List<CitationModel> citations = const [];
+
+    ChatMessageModel buildAssistant() => ChatMessageModel(
+          id: assistantId,
+          threadId: _threadId,
+          role: 'ASSISTANT',
+          content: assistantContent,
+          citations: citations,
+          createdAt: DateTime.now(),
+        );
+
+    // Optimistik: user xabari + bo'sh assistant placeholder (oxirgi element)
+    state = state.copyWith(messages: [...state.messages, userMsg, buildAssistant()]);
+
+    void replaceLast(ChatMessageModel msg) {
+      final msgs = [...state.messages];
+      if (msgs.isNotEmpty) msgs[msgs.length - 1] = msg;
+      state = state.copyWith(messages: msgs);
+    }
+
+    try {
+      await for (final evt
+          in _dataSource.streamMessage(_threadId, question, language)) {
+        switch (evt.event) {
+          case 'token':
+            assistantContent += (evt.data['delta'] as String?) ?? '';
+            replaceLast(buildAssistant());
+            break;
+          case 'done':
+            citations = ((evt.data['sources'] as List<dynamic>?) ?? [])
+                .map((e) => CitationModel.fromJson(e as Map<String, dynamic>))
+                .toList();
+            replaceLast(buildAssistant());
+            state = state.copyWith(isSending: false, status: ChatStatus.loaded);
+            break;
+          case 'error':
+            state = state.copyWith(
+              isSending: false,
+              status: ChatStatus.error,
+              errorMessage: (evt.data['message'] as String?) ?? 'Xatolik yuz berdi',
+            );
+            break;
+        }
+      }
+      // Oqim yopilganda hali sending bo'lsa — yakunlaymiz
+      if (state.isSending) {
+        state = state.copyWith(isSending: false, status: ChatStatus.loaded);
+      }
+    } on AppException catch (e) {
+      state = state.copyWith(
+          isSending: false, status: ChatStatus.error, errorMessage: e.message);
+    } catch (_) {
+      state = state.copyWith(
+          isSending: false,
+          status: ChatStatus.error,
+          errorMessage: 'Xatolik yuz berdi');
+    }
+  }
 }

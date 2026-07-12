@@ -66,7 +66,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   void _sendMessage(String text) {
     ref
         .read(chatThreadProvider(widget.threadId).notifier)
-        .sendMessage(text, _language);
+        .sendMessageStream(text, _language);
     _scrollToBottom();
   }
 
