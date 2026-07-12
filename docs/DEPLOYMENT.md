@@ -120,6 +120,26 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 ---
 
+## 8.5. To'lov — Payme merchant sozlash
+
+Payme Merchant API to'liq amalga oshirilgan (JSON-RPC: CheckPerform / Create /
+Perform / Cancel / Check / GetStatement).
+
+1. Payme Business kabinetida merchant yarating va **kalit (key)** oling.
+2. `apps/api/.env.prod` da:
+   - `PAYME_MERCHANT_ID` — merchant ID
+   - `PAYME_SECRET_KEY` — kabinetdagi kalit (webhook `Authorization` tekshiruvi shunga bog'liq)
+3. Kabinetda **Endpoint URL** sifatida quyidagini ko'rsating:
+   ```
+   https://api.<DOMEN>/api/v1/payments/payme/webhook
+   ```
+4. Payme test kabinetida (sandbox) integratsiyani tekshiring — 6 metod ham
+   to'g'ri javob berishi kerak. So'ng production'ga o'ting.
+
+> Click uchun to'liq Prepare/Complete protokoli hali qo'shilmagan (keyingi bosqich).
+
+---
+
 ## 9. Mobil ilova — Play Market
 
 ### 9.1. Signing keystore (bir marta)
