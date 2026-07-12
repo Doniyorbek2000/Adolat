@@ -8,8 +8,10 @@ import {
   Param,
   Patch,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -117,73 +119,19 @@ export class ChatController {
     @Param('id') threadId: string,
     @Body() dto: SendMessageDto,
   ) {
-    // 1. Verify thread ownership
-    await this.chatService.verifyThreadOwnership(user.id, threadId);
+    const prep = await this.prepareAnswer(user, threadId, dto);
 
-    // 2. Save user message
-    const userMessage = await this.chatService.saveUserMessage(
-      threadId,
-      user.id,
-      dto.question,
-      dto.language,
-    );
-
-    // 3. RAG: qonuniy hujjatlar bazasidan kontekst qidirish
-    const lang = (dto.language as string) === 'RU' ? 'RU' : 'UZ';
-    let ragContext = await this.ragService.findContext(dto.question, lang).catch(() => null);
-
-    // 4. Build context items: RAG chunks first, then recent conversation for continuity
-    const contextItems: AiContextItemDto[] = [];
-
-    if (ragContext && ragContext.chunks.length > 0) {
-      // RAG natijalarini context sifatida qo'sh
-      for (const chunk of ragContext.chunks.slice(0, 5)) {
-        contextItems.push({
-          sourceName: chunk.sourceName,
-          title: chunk.documentTitle,
-          content: chunk.content,
-          url: chunk.documentUrl || undefined,
-        });
-      }
-    }
-
-    // Recent assistant messages for conversational continuity (max 2)
-    const recentMessages = await this.chatService.getRecentMessages(threadId, 6);
-    const conversationContext = recentMessages
-      .filter((m) => m.role === 'ASSISTANT' && m.id !== userMessage.id)
-      .slice(0, 2)
-      .map((m) => ({
-        sourceName: 'Adolat AI',
-        title: 'Oldingi javob',
-        content: m.content.slice(0, 400),
-      }));
-    contextItems.push(...conversationContext);
-
-    // 5. AI prompt: agar RAG kontekst yo'q bo'lsa ehtiyotkor javob
-    const hasLegalContext = ragContext && ragContext.hasSufficientContext;
-    const questionWithHint = hasLegalContext
-      ? dto.question
-      : `${dto.question}\n\n[ESLATMA: Hujjatlar bazasidan aniq manba topilmadi. Umumiy huquqiy bilimlar asosida ehtiyotkor javob ber.]`;
-
-    // 6. Call AI router
     const aiResult = await this.aiRouterService.generateLegalAnswer({
       userId: user.id,
-      question: questionWithHint,
+      question: prep.questionWithHint,
       language: dto.language as unknown as AnswerLanguage,
-      context: contextItems.length > 0 ? contextItems : [
-        {
-          sourceName: 'Adolat AI',
-          title: 'Kontekst',
-          content: "Hujjatlar bazasidan tegishli manba topilmadi.",
-        },
-      ],
+      context: prep.aiContext,
     });
 
-    // 7. Citation Engine: majburiy manba bloki + ishonch % (master-spec 4-bo'lim)
-    const citation = this.citationService.build(ragContext?.chunks ?? [], lang);
+    // Citation Engine: majburiy manba bloki + ishonch % (master-spec 4-bo'lim)
+    const citation = this.citationService.build(prep.ragContext?.chunks ?? [], prep.lang);
     const answerWithCitations = `${aiResult.answer.trim()}\n\n${citation.footer}`;
 
-    // 8. Save assistant message with structured citations
     const assistantMessage = await this.chatService.saveAssistantMessage(
       threadId,
       user.id,
@@ -197,7 +145,7 @@ export class ChatController {
     );
 
     return {
-      userMessage,
+      userMessage: prep.userMessage,
       assistantMessage,
       sources: citation.citations,
       meta: {
@@ -205,13 +153,160 @@ export class ChatController {
         model: aiResult.model,
         latencyMs: aiResult.latencyMs,
         fallbackUsed: aiResult.fallbackUsed,
-        ragUsed: ragContext !== null && ragContext.chunks.length > 0,
-        ragChunksFound: ragContext?.chunks.length ?? 0,
+        ragUsed: prep.ragUsed,
+        ragChunksFound: prep.ragChunksFound,
         confidence: citation.confidence,
         hasSources: citation.hasSources,
         lastUpdated: citation.lastUpdated,
       },
     };
+  }
+
+  // ─── Shared preparation (RAG + context) ─────────────────────────────────────
+
+  private async prepareAnswer(
+    user: RequestUser,
+    threadId: string,
+    dto: SendMessageDto,
+  ) {
+    await this.chatService.verifyThreadOwnership(user.id, threadId);
+
+    const userMessage = await this.chatService.saveUserMessage(
+      threadId,
+      user.id,
+      dto.question,
+      dto.language,
+    );
+
+    const lang = (dto.language as string) === 'RU' ? 'RU' : 'UZ';
+    const ragContext = await this.ragService.findContext(dto.question, lang).catch(() => null);
+
+    const contextItems: AiContextItemDto[] = [];
+    if (ragContext && ragContext.chunks.length > 0) {
+      for (const chunk of ragContext.chunks.slice(0, 5)) {
+        contextItems.push({
+          sourceName: chunk.sourceName,
+          title: chunk.documentTitle,
+          content: chunk.content,
+          url: chunk.documentUrl || undefined,
+        });
+      }
+    }
+
+    // So'nggi assistant javoblari — suhbat uzviyligi uchun (maks 2)
+    const recentMessages = await this.chatService.getRecentMessages(threadId, 6);
+    const conversationContext = recentMessages
+      .filter((m) => m.role === 'ASSISTANT' && m.id !== userMessage.id)
+      .slice(0, 2)
+      .map((m) => ({
+        sourceName: 'Adolat AI',
+        title: 'Oldingi javob',
+        content: m.content.slice(0, 400),
+      }));
+    contextItems.push(...conversationContext);
+
+    const hasLegalContext = Boolean(ragContext && ragContext.hasSufficientContext);
+    const questionWithHint = hasLegalContext
+      ? dto.question
+      : `${dto.question}\n\n[ESLATMA: Hujjatlar bazasidan aniq manba topilmadi. Umumiy huquqiy bilimlar asosida ehtiyotkor javob ber.]`;
+
+    const aiContext: AiContextItemDto[] =
+      contextItems.length > 0
+        ? contextItems
+        : [
+            {
+              sourceName: 'Adolat AI',
+              title: 'Kontekst',
+              content: "Hujjatlar bazasidan tegishli manba topilmadi.",
+            },
+          ];
+
+    return {
+      userMessage,
+      ragContext,
+      lang: lang as 'UZ' | 'RU',
+      questionWithHint,
+      aiContext,
+      ragUsed: ragContext !== null && ragContext.chunks.length > 0,
+      ragChunksFound: ragContext?.chunks.length ?? 0,
+    };
+  }
+
+  // ─── Streaming (SSE) ────────────────────────────────────────────────────────
+
+  @Post('threads/:id/messages/stream')
+  @UseGuards(UsageGuard)
+  @UsageType('questionsUsed')
+  @ApiOperation({ summary: 'Savolni yuborish va AI javobini SSE oqimi sifatida olish' })
+  @ApiParam({ name: 'id', description: 'Thread UUID' })
+  async streamMessage(
+    @CurrentUser() user: RequestUser,
+    @Param('id') threadId: string,
+    @Body() dto: SendMessageDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // nginx bufferini o'chiradi
+    res.flushHeaders();
+
+    const send = (event: string, data: unknown): void => {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    try {
+      const prep = await this.prepareAnswer(user, threadId, dto);
+      send('user', { id: prep.userMessage.id });
+
+      const result = await this.aiRouterService.streamLegalAnswer(
+        {
+          userId: user.id,
+          question: prep.questionWithHint,
+          language: dto.language as unknown as AnswerLanguage,
+          context: prep.aiContext,
+        },
+        (delta) => send('token', { delta }),
+      );
+
+      // Citation footer — oqim oxirida qo'shiladi
+      const citation = this.citationService.build(prep.ragContext?.chunks ?? [], prep.lang);
+      send('token', { delta: `\n\n${citation.footer}` });
+
+      const fullAnswer = `${result.answer.trim()}\n\n${citation.footer}`;
+      const assistantMessage = await this.chatService.saveAssistantMessage(
+        threadId,
+        user.id,
+        fullAnswer,
+        citation.citations,
+        result.provider,
+        result.model,
+        0,
+        0,
+        result.latencyMs,
+      );
+
+      send('done', {
+        assistantMessageId: assistantMessage.id,
+        sources: citation.citations,
+        meta: {
+          provider: result.provider,
+          model: result.model,
+          latencyMs: result.latencyMs,
+          fallbackUsed: result.fallbackUsed,
+          ragUsed: prep.ragUsed,
+          ragChunksFound: prep.ragChunksFound,
+          confidence: citation.confidence,
+          hasSources: citation.hasSources,
+          lastUpdated: citation.lastUpdated,
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'AI javob bera olmadi';
+      send('error', { message });
+    } finally {
+      res.end();
+    }
   }
 
   // ─── Feedback ─────────────────────────────────────────────────────────────

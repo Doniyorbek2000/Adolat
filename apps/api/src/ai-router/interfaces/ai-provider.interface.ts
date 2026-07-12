@@ -30,6 +30,11 @@ export interface AiProviderClient {
   readonly provider: AiProviderName;
   readonly isConfigured: boolean;
   complete(request: AiCompletionRequest, timeoutMs: number): Promise<AiCompletionResult>;
+  /**
+   * Javobni bo'lak-bo'lak (token oqimi) qaytaradi. Har bir `yield` — matn deltasi.
+   * Provayder qo'llab-quvvatlamasa, AiRouter `complete()` ga qaytadi.
+   */
+  stream?(request: AiCompletionRequest, timeoutMs: number): AsyncGenerator<string, void, unknown>;
 }
 
 export class AiProviderError extends Error {
