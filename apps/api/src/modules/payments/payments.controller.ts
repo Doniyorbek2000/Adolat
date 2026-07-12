@@ -15,15 +15,20 @@ import {
 } from '@nestjs/swagger';
 
 import { Public } from '../../common/decorators/public.decorator';
+import { RawResponse } from '../../common/decorators/raw-response.decorator';
 import { CurrentUser, RequestUser } from '../../common/decorators/current-user.decorator';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { PaymentsService } from './payments.service';
+import { PaymeMerchantService } from './payme/payme-merchant.service';
 
 @ApiTags('payments')
 @ApiBearerAuth()
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly paymeMerchant: PaymeMerchantService,
+  ) {}
 
   @Post('invoice')
   @ApiCreatedResponse({ description: 'Invoice created and payment URL returned' })
@@ -50,14 +55,16 @@ export class PaymentsController {
     return this.paymentsService.handleClickWebhook(payload, signature);
   }
 
+  // Payme Merchant API (JSON-RPC). Xom javob qaytaradi (o'ralmaydi).
   @Post('payme/webhook')
   @Public()
-  @ApiOkResponse({ description: 'Payme webhook received' })
+  @RawResponse()
+  @ApiOkResponse({ description: 'Payme JSON-RPC endpoint' })
   handlePaymeWebhook(
     @Body() payload: unknown,
     @Headers('authorization') authorization?: string,
   ) {
-    return this.paymentsService.handlePaymeWebhook(payload, authorization);
+    return this.paymeMerchant.handle(payload, authorization);
   }
 
   @Get(':id')

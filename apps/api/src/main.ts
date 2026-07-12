@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -45,7 +45,10 @@ async function bootstrap(): Promise<void> {
 
   // --- Yagona javob va xato formatlari ---
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(new LoggingInterceptor(), new ResponseInterceptor());
+  app.useGlobalInterceptors(
+    new LoggingInterceptor(),
+    new ResponseInterceptor(app.get(Reflector)),
+  );
 
   // --- Swagger / OpenAPI ---
   const swaggerConfig = new DocumentBuilder()

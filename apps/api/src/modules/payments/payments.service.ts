@@ -129,28 +129,17 @@ export class PaymentsService {
     }
   }
 
-  async handlePaymeWebhook(payload: unknown, authorization?: string): Promise<void> {
-    const valid = this.paymeProvider.verifyWebhook(payload, authorization);
+  // Payme JSON-RPC oqimi PaymeMerchantService orqali boshqariladi; u holat
+  // o'zgarganda quyidagi public metodlarni chaqiradi.
 
-    await this.prisma.paymentWebhookLog.create({
-      data: {
-        provider: PaymentProvider.PAYME,
-        rawPayload: payload as Prisma.InputJsonValue,
-        signatureValid: valid,
-      },
-    });
+  /** Payme PerformTransaction — invoice to'landi, obunani faollashtiramiz. */
+  async settlePaymePaid(invoiceId: string): Promise<void> {
+    await this.processPayment(invoiceId, PaymentProvider.PAYME);
+  }
 
-    if (!valid) {
-      this.logger.warn('Payme webhook auth invalid — logged but not processed');
-      return;
-    }
-
-    const result = await this.paymeProvider.processWebhook(payload);
-    if (result.status === 'paid') {
-      await this.processPayment(result.invoiceId, PaymentProvider.PAYME);
-    } else if (result.status === 'failed' || result.status === 'cancelled') {
-      await this.markInvoiceFailed(result.invoiceId, result.status);
-    }
+  /** Payme CancelTransaction — invoice bekor qilindi. */
+  async settlePaymeCancelled(invoiceId: string): Promise<void> {
+    await this.markInvoiceFailed(invoiceId, 'cancelled');
   }
 
   // ----------------------------------------------------------------
