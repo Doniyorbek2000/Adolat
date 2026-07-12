@@ -71,7 +71,7 @@ docker run --rm \
   -v $(pwd)/infra/certbot/www:/var/www/certbot \
   -v $(pwd)/infra/nginx/ssl:/etc/letsencrypt \
   certbot/certbot certonly --webroot -w /var/www/certbot \
-  -d api.<DOMEN> -d admin.<DOMEN> --email you@<DOMEN> --agree-tos --no-eff-email
+  -d <DOMEN> -d api.<DOMEN> -d admin.<DOMEN> --email you@<DOMEN> --agree-tos --no-eff-email
 ```
 
 So'ng olingan `fullchain.pem` / `privkey.pem` fayllarni `infra/nginx/ssl/` ga
@@ -105,6 +105,9 @@ curl https://api.<DOMEN>/api/v1/health          # {"status":"ok",...}
 ```
 - Admin panel: `https://admin.<DOMEN>` — `ADMIN_DEFAULT_EMAIL/PASSWORD` bilan kiring.
 - Swagger: `https://api.<DOMEN>/api/docs`
+- Maxfiylik siyosati: `https://<DOMEN>/privacy` — bu manzilni Play Console'ga qo'ying.
+  (nginx uni `docs/store/privacy-policy.html` dan xizmat qiladi; DNS'da `<DOMEN>`
+  A-yozuvi VPS IP'ga ishora qilishi kerak.)
 
 ## 8. Yangilash (redeploy)
 
