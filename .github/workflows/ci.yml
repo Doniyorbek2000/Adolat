@@ -30,8 +30,8 @@ jobs:
       - name: Build API
         run: npm run build --workspace=apps/api
 
-      - name: Run API tests
-        run: npm run test --workspace=apps/api
+      - name: Run API tests (with coverage)
+        run: npm run test:cov --workspace=apps/api
 
       - name: Lint API
         run: npm run lint --workspace=apps/api
