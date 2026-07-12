@@ -13,6 +13,7 @@ import { AiRouterService } from '../../ai-router/ai-router.service';
 import { AnswerLanguage } from '../../ai-router/dto/generate-answer.dto';
 import { FilesService } from '../files/files.service';
 import { StorageService } from '../files/storage/storage.service';
+import { OcrService } from '../ocr/ocr.service';
 
 // ─── Result shape ────────────────────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ export class DocumentAnalyzerService {
     private readonly aiRouter: AiRouterService,
     private readonly filesService: FilesService,
     private readonly storage: StorageService,
+    private readonly ocr: OcrService,
   ) {}
 
   // ─── Public API ─────────────────────────────────────────────────────────────
@@ -121,8 +123,8 @@ export class DocumentAnalyzerService {
       // Resolve local path (works for local storage; for S3 we try local cache)
       const localPath = this.storage.getLocalPath(storageKey);
 
-      // Extract text
-      const text = await this.extractText(localPath, mimeType);
+      // Extract text (rasm bo'lsa Gemini vision OCR ishlatiladi)
+      const text = await this.extractText(localPath, mimeType, language);
 
       if (!text.trim()) {
         throw new Error('Fayldan matn ajratib olinmadi');
@@ -155,7 +157,11 @@ export class DocumentAnalyzerService {
     }
   }
 
-  private async extractText(filePath: string, mimeType: string): Promise<string> {
+  private async extractText(
+    filePath: string,
+    mimeType: string,
+    language: Language,
+  ): Promise<string> {
     const normalized = mimeType.toLowerCase();
 
     if (normalized === 'application/pdf') {
@@ -168,6 +174,12 @@ export class DocumentAnalyzerService {
       normalized === 'application/msword'
     ) {
       return this.extractDocx(filePath);
+    }
+
+    // Rasm (skaner, foto) — Gemini vision OCR
+    if (normalized.startsWith('image/')) {
+      const buffer = await fs.promises.readFile(filePath);
+      return this.ocr.visionOcr(buffer, mimeType, language === Language.RU ? 'RU' : 'UZ');
     }
 
     // TXT, RTF, and fallback

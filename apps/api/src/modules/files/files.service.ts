@@ -30,6 +30,12 @@ const ALLOWED_MIME_TYPES = new Set([
   'audio/mp4',
   'audio/x-wav',
   'audio/x-m4a',
+  // Rasm (OCR uchun — passport, ID, skaner, foto)
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/tiff',
 ]);
 
 @Injectable()

@@ -25,6 +25,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { FilesModule } from './modules/files/files.module';
 import { DocumentAnalyzerModule } from './modules/document-analyzer/document-analyzer.module';
+import { OcrModule } from './modules/ocr/ocr.module';
 import { DocumentGeneratorModule } from './modules/document-generator/document-generator.module';
 import { VoiceModule } from './modules/voice/voice.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
@@ -70,6 +71,7 @@ import { RagModule } from './modules/rag/rag.module';
     ChatModule,
     FilesModule,
     DocumentAnalyzerModule,
+    OcrModule,
     DocumentGeneratorModule,
     VoiceModule,
 
