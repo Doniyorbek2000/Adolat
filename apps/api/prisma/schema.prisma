@@ -776,10 +776,10 @@ model LegalSourceChunk {
   chunkIndex   Int      @map("chunk_index")
   content      String   @db.Text
   articleRef   String?  @map("article_ref")
-  // pgvector ustuni (text-embedding-3-small → 1536 o'lchov). Prisma Client uni
+  // pgvector ustuni (Gemini text-embedding-004 → 768 o'lchov). Prisma Client uni
   // to'g'ridan-to'g'ri o'qimaydi/yozmaydi — yozish ingestion'da, qidiruv esa
   // retrieval'da xom SQL (`<=>` cosine distance) orqali amalga oshiriladi.
-  embedding    Unsupported("vector(1536)")?
+  embedding    Unsupported("vector(768)")?
   metadata     Json?    @db.JsonB
   createdAt    DateTime @default(now()) @map("created_at")
 

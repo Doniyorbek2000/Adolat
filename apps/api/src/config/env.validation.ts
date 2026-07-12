@@ -69,8 +69,9 @@ export const envValidationSchema = Joi.object({
   ADMIN_DEFAULT_EMAIL: Joi.string().email({ tlds: false }).required(),
   ADMIN_DEFAULT_PASSWORD: Joi.string().min(8).required(),
 
-  EMBEDDINGS_PROVIDER: Joi.string().valid('openai').default('openai'),
-  EMBEDDINGS_MODEL: Joi.string().default('text-embedding-3-small'),
+  EMBEDDINGS_PROVIDER: Joi.string().valid('gemini', 'openai').default('gemini'),
+  EMBEDDINGS_MODEL: Joi.string().default('text-embedding-004'),
+  EMBEDDINGS_DIMENSIONS: Joi.number().default(768),
 
   STT_PROVIDER: Joi.string().valid('openai').default('openai'),
   TTS_PROVIDER: Joi.string().valid('openai').default('openai'),
