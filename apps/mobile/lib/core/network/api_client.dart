@@ -15,8 +15,11 @@ class ApiClient {
     required SecureStorageService secureStorage,
     required Future<void> Function() onUnauthenticated,
   }) {
-    // Use platform-specific base URL
-    final baseUrl = Platform.isAndroid ? AppConfig.androidBaseUrl : AppConfig.iosBaseUrl;
+    // Debug'da lokal, release'da production; --dart-define=API_BASE_URL ustun turadi.
+    final baseUrl = AppConfig.resolveBaseUrl(
+      isAndroid: Platform.isAndroid,
+      isDebug: kDebugMode,
+    );
 
     _dio = Dio(
       BaseOptions(

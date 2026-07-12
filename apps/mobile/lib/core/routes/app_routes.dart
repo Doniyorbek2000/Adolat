@@ -20,7 +20,7 @@ import '../../features/support/presentation/screens/create_ticket_screen.dart';
 import '../../features/support/presentation/screens/ticket_detail_screen.dart';
 import '../../features/support/data/models/support_ticket_model.dart';
 import '../../features/chat/data/models/chat_thread_model.dart';
-import '../../features/voice/presentation/screens/voice_screen.dart';
+import '../../features/voice/presentation/screens/voice_coming_soon_screen.dart';
 import 'route_names.dart';
 
 class AppRoutes {
@@ -110,7 +110,8 @@ class AppRoutes {
       GoRoute(
         path: '/voice',
         name: RouteNames.voice,
-        builder: (context, state) => const VoiceScreen(),
+        // Ovozli yordamchi "tez kunda" — backend tayyor bo'lganda VoiceScreen'ga qaytariladi.
+        builder: (context, state) => const VoiceComingSoonScreen(),
       ),
       GoRoute(
         path: '/notifications',

@@ -115,4 +115,6 @@ class LocaleKeys {
   static const logoutConfirm = 'logout_confirm';
   static const logoutConfirmYes = 'logout_confirm_yes';
   static const logoutConfirmNo = 'logout_confirm_no';
+  static const comingSoon = 'coming_soon';
+  static const voiceComingSoonDesc = 'voice_coming_soon_desc';
 }
