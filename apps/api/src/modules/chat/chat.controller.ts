@@ -26,6 +26,7 @@ import { AnswerLanguage } from '../../ai-router/dto/generate-answer.dto';
 import { UsageGuard } from '../../common/guards/usage.guard';
 import { UsageType } from '../../common/decorators/usage-type.decorator';
 import { RagService } from '../rag/rag.service';
+import { CitationService } from '../rag/services/citation.service';
 
 import { ChatService } from './chat.service';
 import { CreateThreadDto } from './dto/create-thread.dto';
@@ -41,6 +42,7 @@ export class ChatController {
     private readonly chatService: ChatService,
     private readonly aiRouterService: AiRouterService,
     private readonly ragService: RagService,
+    private readonly citationService: CitationService,
   ) {}
 
   // ─── Threads ──────────────────────────────────────────────────────────────
@@ -177,22 +179,16 @@ export class ChatController {
       ],
     });
 
-    // 7. Build sources metadata from RAG chunks (top-5)
-    const sources = ragContext?.chunks.slice(0, 5).map((c) => ({
-      sourceName: c.sourceName,
-      title: c.documentTitle,
-      url: c.documentUrl.startsWith('manual://') ? null : c.documentUrl,
-      articleRef: c.articleRef ?? null,
-      excerpt: c.content.slice(0, 300).replace(/\s+/g, ' ').trim(),
-      similarity: Math.round(c.similarity * 100) / 100,
-    })) ?? [];
+    // 7. Citation Engine: majburiy manba bloki + ishonch % (master-spec 4-bo'lim)
+    const citation = this.citationService.build(ragContext?.chunks ?? [], lang);
+    const answerWithCitations = `${aiResult.answer.trim()}\n\n${citation.footer}`;
 
-    // 8. Save assistant message with citations
+    // 8. Save assistant message with structured citations
     const assistantMessage = await this.chatService.saveAssistantMessage(
       threadId,
       user.id,
-      aiResult.answer,
-      sources,
+      answerWithCitations,
+      citation.citations,
       aiResult.provider,
       aiResult.model,
       0,
@@ -203,7 +199,7 @@ export class ChatController {
     return {
       userMessage,
       assistantMessage,
-      sources,
+      sources: citation.citations,
       meta: {
         provider: aiResult.provider,
         model: aiResult.model,
@@ -211,6 +207,9 @@ export class ChatController {
         fallbackUsed: aiResult.fallbackUsed,
         ragUsed: ragContext !== null && ragContext.chunks.length > 0,
         ragChunksFound: ragContext?.chunks.length ?? 0,
+        confidence: citation.confidence,
+        hasSources: citation.hasSources,
+        lastUpdated: citation.lastUpdated,
       },
     };
   }
