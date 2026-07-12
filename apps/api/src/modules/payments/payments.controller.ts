@@ -20,6 +20,7 @@ import { CurrentUser, RequestUser } from '../../common/decorators/current-user.d
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { PaymentsService } from './payments.service';
 import { PaymeMerchantService } from './payme/payme-merchant.service';
+import { ClickMerchantService } from './click/click-merchant.service';
 
 @ApiTags('payments')
 @ApiBearerAuth()
@@ -28,6 +29,7 @@ export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly paymeMerchant: PaymeMerchantService,
+    private readonly clickMerchant: ClickMerchantService,
   ) {}
 
   @Post('invoice')
@@ -45,14 +47,13 @@ export class PaymentsController {
     return this.paymentsService.getHistory(user.id);
   }
 
+  // Click Merchant API (Prepare/Complete). Xom JSON javob qaytaradi.
   @Post('click/webhook')
   @Public()
-  @ApiOkResponse({ description: 'Click webhook received' })
-  handleClickWebhook(
-    @Body() payload: unknown,
-    @Headers('x-click-signature') signature?: string,
-  ) {
-    return this.paymentsService.handleClickWebhook(payload, signature);
+  @RawResponse()
+  @ApiOkResponse({ description: 'Click Prepare/Complete endpoint' })
+  handleClickWebhook(@Body() payload: unknown) {
+    return this.clickMerchant.handle(payload);
   }
 
   // Payme Merchant API (JSON-RPC). Xom javob qaytaradi (o'ralmaydi).

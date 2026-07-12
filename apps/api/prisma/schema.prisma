@@ -528,9 +528,30 @@ model Invoice {
   subscription Subscription?     @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   payments     Payment[]
   paymeTransactions PaymeTransaction[]
+  clickTransactions ClickTransaction[]
 
   @@index([userId, status])
   @@map("invoices")
+}
+
+/// Click Merchant API tranzaksiyasi (Prepare/Complete protokoli).
+/// status: PREPARING = tayyorlangan, PAID = to'langan, CANCELLED = bekor.
+model ClickTransaction {
+  id                String    @id @default(uuid()) @db.Uuid
+  clickTransId      String    @unique @map("click_trans_id")
+  invoiceId         String    @map("invoice_id") @db.Uuid
+  amount            Decimal   @db.Decimal(14, 2)
+  merchantPrepareId String?   @map("merchant_prepare_id")
+  status            String    @default("PREPARING")
+  paidAt            DateTime? @map("paid_at")
+  cancelledAt       DateTime? @map("cancelled_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("click_transactions")
 }
 
 /// Payme Merchant API tranzaksiyasi (JSON-RPC holat-mashinasi).
