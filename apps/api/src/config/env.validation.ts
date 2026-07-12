@@ -75,7 +75,9 @@ export const envValidationSchema = Joi.object({
   STT_PROVIDER: Joi.string().valid('openai').default('openai'),
   TTS_PROVIDER: Joi.string().valid('openai').default('openai'),
 
-  FCM_SERVER_KEY: Joi.string().allow('').default(''),
+  FCM_PROJECT_ID: Joi.string().allow('').default(''),
+  FCM_CLIENT_EMAIL: Joi.string().allow('').default(''),
+  FCM_PRIVATE_KEY: Joi.string().allow('').default(''),
 
   MAX_FILE_SIZE_MB: Joi.number().default(50),
   UPLOAD_DIR: Joi.string().default('./uploads'),
