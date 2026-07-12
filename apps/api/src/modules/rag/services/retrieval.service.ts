@@ -1,12 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { LegalSourceStatus, LegalSourceType } from '@prisma/client';
+import { LegalSourceStatus, LegalSourceType, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 import { EmbeddingService } from '../../ingestion/services/embedding.service';
 import { RagChunk } from '../rag.service';
 
 const TOP_K = 8;
+
+/** pgvector cosine qidiruvi qaytaradigan xom qator. */
+interface RetrievedRow {
+  content: string;
+  articleRef: string | null;
+  documentTitle: string;
+  documentUrl: string;
+  publishedAt: Date | null;
+  sourceName: string;
+  similarity: number;
+}
 
 @Injectable()
 export class RetrievalService {
@@ -42,62 +53,55 @@ export class RetrievalService {
     }
   }
 
+  /**
+   * pgvector cosine qidiruvi: ANN indeks (`<=>`) yordamida eng yaqin top-K
+   * chunk'ni to'g'ridan-to'g'ri PostgreSQL'da tanlaydi. Barcha embedding'larni
+   * xotiraga yuklamaydi — katta hajmda ham tez ishlaydi.
+   *
+   * similarity = 1 - cosine_distance.
+   */
   private async retrieveByEmbedding(
     queryEmbedding: number[],
     sourceTypes?: LegalSourceType[],
   ): Promise<RagChunk[]> {
-    // Fetch chunks from enabled sources (optionally filtered by type)
-    const chunks = await this.prisma.legalSourceChunk.findMany({
-      where: {
-        version: {
-          source: {
-            status: LegalSourceStatus.ACTIVE,
-            ...(sourceTypes && sourceTypes.length > 0
-              ? { type: { in: sourceTypes } }
-              : {}),
-          },
-        },
-        embeddingRef: { not: null },
-      },
-      include: {
-        version: {
-          include: { source: true },
-        },
-      },
-    });
+    const vectorLiteral = `[${queryEmbedding.join(',')}]`;
 
-    // Compute cosine similarity for each chunk
-    const scored: Array<{ chunk: typeof chunks[0]; similarity: number }> = [];
+    const typeFilter =
+      sourceTypes && sourceTypes.length > 0
+        ? Prisma.sql`AND s."type"::text = ANY(${sourceTypes.map((t) => String(t))})`
+        : Prisma.empty;
 
-    for (const chunk of chunks) {
-      if (!chunk.embeddingRef) continue;
+    const rows = await this.prisma.$queryRaw<RetrievedRow[]>`
+      SELECT
+        c."content"                                        AS "content",
+        c."article_ref"                                    AS "articleRef",
+        v."document_title"                                 AS "documentTitle",
+        v."document_url"                                   AS "documentUrl",
+        v."published_at"                                   AS "publishedAt",
+        s."name"                                           AS "sourceName",
+        1 - (c."embedding" <=> ${vectorLiteral}::vector)   AS "similarity"
+      FROM "legal_source_chunks" c
+      JOIN "legal_source_versions" v ON v."id" = c."version_id"
+      JOIN "legal_sources" s ON s."id" = v."source_id"
+      WHERE c."embedding" IS NOT NULL
+        AND s."status" = ${LegalSourceStatus.ACTIVE}::"LegalSourceStatus"
+        ${typeFilter}
+      ORDER BY c."embedding" <=> ${vectorLiteral}::vector
+      LIMIT ${TOP_K}
+    `;
 
-      let chunkEmbedding: number[];
-      try {
-        chunkEmbedding = JSON.parse(chunk.embeddingRef) as number[];
-      } catch {
-        continue;
-      }
-
-      const similarity = this.embedding.cosineSimilarity(queryEmbedding, chunkEmbedding);
-      if (similarity >= this.similarityThreshold) {
-        scored.push({ chunk, similarity });
-      }
-    }
-
-    // Sort descending and take top K
-    scored.sort((a, b) => b.similarity - a.similarity);
-    const topChunks = scored.slice(0, TOP_K);
-
-    return topChunks.map(({ chunk, similarity }) => ({
-      content: chunk.content,
-      sourceName: chunk.version.source.name,
-      documentTitle: chunk.version.documentTitle,
-      documentUrl: chunk.version.documentUrl,
-      articleRef: chunk.articleRef ?? undefined,
-      publishedAt: chunk.version.publishedAt ?? undefined,
-      similarity,
-    }));
+    return rows
+      .map((r) => ({ ...r, similarity: Number(r.similarity) }))
+      .filter((r) => r.similarity >= this.similarityThreshold)
+      .map((r) => ({
+        content: r.content,
+        sourceName: r.sourceName,
+        documentTitle: r.documentTitle,
+        documentUrl: r.documentUrl,
+        articleRef: r.articleRef ?? undefined,
+        publishedAt: r.publishedAt ?? undefined,
+        similarity: r.similarity,
+      }));
   }
 
   private async retrieveByFullText(
