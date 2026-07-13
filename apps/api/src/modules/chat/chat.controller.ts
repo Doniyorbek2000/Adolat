@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Param,
   Patch,
   Post,
@@ -30,6 +31,7 @@ import { UsageType } from '../../common/decorators/usage-type.decorator';
 import { RagService } from '../rag/rag.service';
 import { CitationService } from '../rag/services/citation.service';
 import { WebSearchService } from '../web-search/web-search.service';
+import { sanitizePrompt } from '../../common/security/prompt-sanitizer';
 
 import { ChatService } from './chat.service';
 import { CreateThreadDto } from './dto/create-thread.dto';
@@ -41,6 +43,8 @@ import { UpdateThreadDto } from './dto/update-thread.dto';
 @ApiBearerAuth()
 @Controller('chat')
 export class ChatController {
+  private readonly logger = new Logger(ChatController.name);
+
   constructor(
     private readonly chatService: ChatService,
     private readonly aiRouterService: AiRouterService,
@@ -173,6 +177,12 @@ export class ChatController {
   ) {
     await this.chatService.verifyThreadOwnership(user.id, threadId);
 
+    // Prompt-injection himoyasi: foydalanuvchi savolini AI'ga uzatishdan oldin tozalash
+    const { text: question, injectionDetected } = sanitizePrompt(dto.question);
+    if (injectionDetected) {
+      this.logger.warn(`Prompt-injection urinishi aniqlandi (user=${user.id}, thread=${threadId})`);
+    }
+
     const userMessage = await this.chatService.saveUserMessage(
       threadId,
       user.id,
@@ -181,7 +191,7 @@ export class ChatController {
     );
 
     const lang = (dto.language as string) === 'RU' ? 'RU' : 'UZ';
-    const ragContext = await this.ragService.findContext(dto.question, lang).catch(() => null);
+    const ragContext = await this.ragService.findContext(question, lang).catch(() => null);
 
     const contextItems: AiContextItemDto[] = [];
     if (ragContext && ragContext.chunks.length > 0) {
@@ -210,7 +220,7 @@ export class ChatController {
     // Lokal bazada yetarli manba bo'lmasa — rasmiy manbalardan veb-qidiruv (fallback)
     let webAdded = false;
     if ((!ragContext || !ragContext.hasSufficientContext) && this.webSearch.isConfigured) {
-      const webResults = await this.webSearch.search(dto.question, 4).catch(() => []);
+      const webResults = await this.webSearch.search(question, 4).catch(() => []);
       for (const r of webResults) {
         contextItems.push({ sourceName: new URL(r.url).hostname, title: r.title, content: r.snippet, url: r.url });
         webAdded = true;
@@ -219,8 +229,8 @@ export class ChatController {
 
     const hasLegalContext = Boolean(ragContext && ragContext.hasSufficientContext) || webAdded;
     const questionWithHint = hasLegalContext
-      ? dto.question
-      : `${dto.question}\n\n[ESLATMA: Hujjatlar bazasidan aniq manba topilmadi. Umumiy huquqiy bilimlar asosida ehtiyotkor javob ber.]`;
+      ? question
+      : `${question}\n\n[ESLATMA: Hujjatlar bazasidan aniq manba topilmadi. Umumiy huquqiy bilimlar asosida ehtiyotkor javob ber.]`;
 
     const aiContext: AiContextItemDto[] =
       contextItems.length > 0
