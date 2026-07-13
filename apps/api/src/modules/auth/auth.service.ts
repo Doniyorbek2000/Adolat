@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { OtpType, Prisma, User } from '@prisma/client';
+import { Language, OtpType, Prisma, User } from '@prisma/client';
 
 import { AppSettings } from '../../config/app.config';
 import { PrismaService } from '../../database/prisma/prisma.service';
@@ -26,6 +26,8 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { AuthenticatedUserView, AuthResponse, AuthTokens, RegisterResult } from './types/auth-response.type';
 import { AccessTokenPayload, RefreshTokenPayload } from './types/token-payload.type';
 import { generateOtpCode, getOtpExpiry, hashOtpCode, verifyOtpCode } from './utils/otp.util';
+import { randomBytes } from 'crypto';
+
 import { hashPassword, verifyPassword } from './utils/password.util';
 import { calculateExpiry, generateTokenId, hashToken } from './utils/token.util';
 
@@ -255,6 +257,86 @@ export class AuthService {
       ipAddress: context.ipAddress,
       userAgent: context.userAgent,
       metadata: { event: 'LOGIN', deviceName: dto.deviceName ?? null },
+    });
+
+    return { ...tokens, user: this.toUserView(user) };
+  }
+
+  // ============================================================
+  // SOCIAL LOGIN (Google / OneID)
+  // ============================================================
+
+  /**
+   * Ijtimoiy provayder (Google, OneID) orqali kirish. Provayder emailni
+   * tasdiqlagani uchun OTP talab qilinmaydi — foydalanuvchi topilmasa ACTIVE
+   * holatda yaratiladi (USER roli + bepul tarif) va tokenlar beriladi.
+   */
+  async socialLogin(
+    profile: { email: string; firstName?: string | null; lastName?: string | null; provider: string },
+    context: RequestContext,
+  ): Promise<AuthResponse> {
+    const email = profile.email.toLowerCase();
+
+    let user = await this.prisma.user.findFirst({
+      where: { email },
+      include: USER_WITH_ROLES_INCLUDE,
+    });
+
+    if (!user) {
+      const passwordHash = await hashPassword(randomBytes(24).toString('hex'), this.appSettings.argon2);
+      const created = await this.prisma.$transaction(async (tx) => {
+        const u = await tx.user.create({
+          data: { email, passwordHash, language: Language.UZ, status: 'ACTIVE' },
+        });
+        await tx.userProfile.create({
+          data: { userId: u.id, firstName: profile.firstName ?? null, lastName: profile.lastName ?? null },
+        });
+        const role = await tx.role.findUnique({ where: { name: 'USER' } });
+        if (role) await tx.userRole.create({ data: { userId: u.id, roleId: role.id } });
+
+        const periodStart = new Date();
+        const periodEnd = new Date(periodStart.getTime() + FREE_PLAN_PERIOD_DAYS * 86_400_000);
+        await tx.usageCounter.create({ data: { userId: u.id, periodStart, periodEnd } });
+
+        const freePlan = await tx.subscriptionPlan.findUnique({ where: { code: 'FREE' } });
+        if (freePlan) {
+          await tx.subscription.create({
+            data: {
+              userId: u.id,
+              planId: freePlan.id,
+              status: 'ACTIVE',
+              currentPeriodStart: periodStart,
+              currentPeriodEnd: periodEnd,
+            },
+          });
+        }
+        return u;
+      });
+
+      user = await this.prisma.user.findUnique({
+        where: { id: created.id },
+        include: USER_WITH_ROLES_INCLUDE,
+      });
+    }
+
+    if (!user) throw new UnauthorizedException(GENERIC_LOGIN_ERROR);
+    if (user.status === 'BLOCKED') {
+      throw new ForbiddenException("Hisobingiz bloklangan. Qo'llab-quvvatlash xizmatiga murojaat qiling.");
+    }
+
+    const session = await this.createSession(user.id, context, null);
+    const roles = user.roles.map((userRole) => userRole.role.name);
+    const tokens = await this.issueTokens(user.id, session.id, roles);
+
+    await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    await this.auditLogsService.createLog({
+      userId: user.id,
+      action: 'LOGIN',
+      entityType: 'Session',
+      entityId: session.id,
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      metadata: { event: 'SOCIAL_LOGIN', provider: profile.provider },
     });
 
     return { ...tokens, user: this.toUserView(user) };

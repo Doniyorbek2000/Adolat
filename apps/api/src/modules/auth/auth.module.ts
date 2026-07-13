@@ -5,6 +5,8 @@ import { PassportModule } from '@nestjs/passport';
 import { EmailModule } from '../email/email.module';
 
 import { AuthController } from './auth.controller';
+import { SocialAuthController } from './social/social-auth.controller';
+import { SocialAuthService } from './social/social-auth.service';
 import { AuthService } from './auth.service';
 import { JwtAccessStrategy } from './strategies/jwt-access.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
@@ -17,8 +19,8 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
     JwtModule.register({}),
     EmailModule,
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtAccessStrategy, JwtRefreshStrategy],
+  controllers: [AuthController, SocialAuthController],
+  providers: [AuthService, SocialAuthService, JwtAccessStrategy, JwtRefreshStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

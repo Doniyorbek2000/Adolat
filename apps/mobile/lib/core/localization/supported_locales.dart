@@ -4,6 +4,9 @@ class AppSupportedLocales {
   static const List<Locale> locales = [
     Locale('uz'),
     Locale('ru'),
+    Locale('en'),
+    Locale('tr'),
+    Locale('ar'),
   ];
 
   static const Locale fallback = Locale('uz');

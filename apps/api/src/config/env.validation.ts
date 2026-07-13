@@ -92,6 +92,16 @@ export const envValidationSchema = Joi.object({
   SENTRY_DSN: Joi.string().allow('').default(''),
   SENTRY_ENVIRONMENT: Joi.string().allow('').default(''),
 
+  // Ijtimoiy autentifikatsiya (Google / OneID)
+  GOOGLE_CLIENT_ID: Joi.string().allow('').default(''),
+  ONEID_CLIENT_ID: Joi.string().allow('').default(''),
+  ONEID_CLIENT_SECRET: Joi.string().allow('').default(''),
+  ONEID_AUTH_URL: Joi.string().allow('').default(''),
+  ONEID_TOKEN_URL: Joi.string().allow('').default(''),
+  ONEID_USERINFO_URL: Joi.string().allow('').default(''),
+  ONEID_REDIRECT_URI: Joi.string().allow('').default(''),
+  ONEID_SCOPE: Joi.string().allow('').default('myportal'),
+
   RAG_MIN_SIMILARITY: Joi.number().min(0).max(1).default(0.70),
   RAG_TOP_K: Joi.number().min(1).max(20).default(8),
 }).unknown(true);
