@@ -102,6 +102,10 @@ export const envValidationSchema = Joi.object({
   ONEID_REDIRECT_URI: Joi.string().allow('').default(''),
   ONEID_SCOPE: Joi.string().allow('').default('myportal'),
 
+  // Veb-qidiruv (rasmiy manbalar, RAG fallback)
+  TAVILY_API_KEY: Joi.string().allow('').default(''),
+  BRAVE_API_KEY: Joi.string().allow('').default(''),
+
   RAG_MIN_SIMILARITY: Joi.number().min(0).max(1).default(0.70),
   RAG_TOP_K: Joi.number().min(1).max(20).default(8),
 }).unknown(true);

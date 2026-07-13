@@ -29,6 +29,8 @@ import { FilesModule } from './modules/files/files.module';
 import { DocumentAnalyzerModule } from './modules/document-analyzer/document-analyzer.module';
 import { OcrModule } from './modules/ocr/ocr.module';
 import { ContractAnalyzerModule } from './modules/contract-analyzer/contract-analyzer.module';
+import { CourtPracticeModule } from './modules/court-practice/court-practice.module';
+import { WebSearchModule } from './modules/web-search/web-search.module';
 import { DocumentGeneratorModule } from './modules/document-generator/document-generator.module';
 import { VoiceModule } from './modules/voice/voice.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
@@ -82,6 +84,8 @@ import { RagModule } from './modules/rag/rag.module';
     DocumentAnalyzerModule,
     OcrModule,
     ContractAnalyzerModule,
+    CourtPracticeModule,
+    WebSearchModule,
     DocumentGeneratorModule,
     VoiceModule,
 

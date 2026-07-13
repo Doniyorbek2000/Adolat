@@ -29,6 +29,7 @@ import { UsageGuard } from '../../common/guards/usage.guard';
 import { UsageType } from '../../common/decorators/usage-type.decorator';
 import { RagService } from '../rag/rag.service';
 import { CitationService } from '../rag/services/citation.service';
+import { WebSearchService } from '../web-search/web-search.service';
 
 import { ChatService } from './chat.service';
 import { CreateThreadDto } from './dto/create-thread.dto';
@@ -45,6 +46,7 @@ export class ChatController {
     private readonly aiRouterService: AiRouterService,
     private readonly ragService: RagService,
     private readonly citationService: CitationService,
+    private readonly webSearch: WebSearchService,
   ) {}
 
   // ─── Threads ──────────────────────────────────────────────────────────────
@@ -205,7 +207,17 @@ export class ChatController {
       }));
     contextItems.push(...conversationContext);
 
-    const hasLegalContext = Boolean(ragContext && ragContext.hasSufficientContext);
+    // Lokal bazada yetarli manba bo'lmasa — rasmiy manbalardan veb-qidiruv (fallback)
+    let webAdded = false;
+    if ((!ragContext || !ragContext.hasSufficientContext) && this.webSearch.isConfigured) {
+      const webResults = await this.webSearch.search(dto.question, 4).catch(() => []);
+      for (const r of webResults) {
+        contextItems.push({ sourceName: new URL(r.url).hostname, title: r.title, content: r.snippet, url: r.url });
+        webAdded = true;
+      }
+    }
+
+    const hasLegalContext = Boolean(ragContext && ragContext.hasSufficientContext) || webAdded;
     const questionWithHint = hasLegalContext
       ? dto.question
       : `${dto.question}\n\n[ESLATMA: Hujjatlar bazasidan aniq manba topilmadi. Umumiy huquqiy bilimlar asosida ehtiyotkor javob ber.]`;
