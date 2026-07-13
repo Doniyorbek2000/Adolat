@@ -85,6 +85,8 @@ export const envValidationSchema = Joi.object({
 
   INGESTION_CONCURRENCY: Joi.number().default(3),
   SYNC_INTERVAL_DEFAULT_HOURS: Joi.number().default(24),
+  // Rasmiy manbalarni avtomatik sinxronlash (cron). Production'da true qiling.
+  INGESTION_AUTO_SYNC: Joi.boolean().default(false),
 
   RAG_MIN_SIMILARITY: Joi.number().min(0).max(1).default(0.70),
   RAG_TOP_K: Joi.number().min(1).max(20).default(8),

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { ThrottlerBehindProxyGuard } from './common/guards/throttler-behind-proxy.guard';
 
@@ -49,6 +50,9 @@ import { RagModule } from './modules/rag/rag.module';
       },
       load: [appConfig, databaseConfig, redisConfig, aiConfig, storageConfig, paymentConfig],
     }),
+
+    // Rejalashtirilgan vazifalar (masalan lex.uz avto-sinxron)
+    ScheduleModule.forRoot(),
 
     // Rate limiting tayyorgarligi — har bir IP uchun 60 soniyada 120 ta so'rov.
     // Auth bosqichida login/OTP endpointlari uchun qattiqroq @Throttle limitlari qo'shiladi.

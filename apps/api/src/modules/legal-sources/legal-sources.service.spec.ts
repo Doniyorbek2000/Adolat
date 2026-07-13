@@ -12,7 +12,14 @@ describe('LegalSourcesService', () => {
         create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 's1', ...data })),
       },
     };
-    return { service: new LegalSourcesService(prisma as unknown as PrismaService), prisma };
+    const ingestion = { syncSource: jest.fn().mockResolvedValue(undefined) };
+    return {
+      service: new LegalSourcesService(
+        prisma as unknown as PrismaService,
+        ingestion as unknown as import('../ingestion/ingestion.service').IngestionService,
+      ),
+      prisma,
+    };
   }
 
   describe('findOne', () => {
