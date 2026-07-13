@@ -10,77 +10,9 @@ import { PrismaService } from '../../database/prisma/prisma.service';
 import { AiRouterService } from '../../ai-router/ai-router.service';
 import { AnswerLanguage } from '../../ai-router/dto/generate-answer.dto';
 import { CreateGeneratedDocumentDto } from './dto/create-generated-document.dto';
+import { DocumentTypeInfo, DOCUMENT_TYPES, DOCUMENT_TYPE_MAP } from './document-types';
+export type { DocumentTypeInfo } from './document-types';
 
-// ─── Document type metadata ──────────────────────────────────────────────────
-
-export interface DocumentTypeInfo {
-  code: string;
-  nameUz: string;
-  nameRu: string;
-  fields: Array<{ key: string; labelUz: string; labelRu: string; required: boolean }>;
-}
-
-const DOCUMENT_TYPES: DocumentTypeInfo[] = [
-  {
-    code: 'ariza',
-    nameUz: 'Ariza',
-    nameRu: 'Заявление',
-    fields: [
-      { key: 'recipient', labelUz: 'Kimga', labelRu: 'Кому', required: true },
-      { key: 'fullName', labelUz: "To'liq ism", labelRu: 'ФИО', required: true },
-      { key: 'address', labelUz: 'Manzil', labelRu: 'Адрес', required: true },
-      { key: 'subject', labelUz: 'Mavzu', labelRu: 'Тема', required: true },
-      { key: 'body', labelUz: 'Ariza matni', labelRu: 'Текст заявления', required: true },
-    ],
-  },
-  {
-    code: 'shikoyat',
-    nameUz: 'Shikoyat',
-    nameRu: 'Жалоба',
-    fields: [
-      { key: 'recipient', labelUz: 'Kimga', labelRu: 'Кому', required: true },
-      { key: 'fullName', labelUz: "To'liq ism", labelRu: 'ФИО', required: true },
-      { key: 'complainAbout', labelUz: 'Kim haqida shikoyat', labelRu: 'На кого жалоба', required: true },
-      { key: 'incident', labelUz: 'Voqea tavsifi', labelRu: 'Описание инцидента', required: true },
-      { key: 'demand', labelUz: 'Talab', labelRu: 'Требование', required: true },
-    ],
-  },
-  {
-    code: 'da_vo_arizasi',
-    nameUz: "Da'vo arizasi",
-    nameRu: 'Исковое заявление',
-    fields: [
-      { key: 'courtName', labelUz: 'Sud nomi', labelRu: 'Название суда', required: true },
-      { key: 'plaintiff', labelUz: "Da'vogar", labelRu: 'Истец', required: true },
-      { key: 'defendant', labelUz: 'Javobgar', labelRu: 'Ответчик', required: true },
-      { key: 'claimAmount', labelUz: "Da'vo summasi", labelRu: 'Сумма иска', required: false },
-      { key: 'claimDescription', labelUz: "Da'vo tavsifi", labelRu: 'Описание иска', required: true },
-    ],
-  },
-  {
-    code: 'shartnoma',
-    nameUz: 'Shartnoma',
-    nameRu: 'Договор',
-    fields: [
-      { key: 'party1', labelUz: '1-tomon', labelRu: 'Сторона 1', required: true },
-      { key: 'party2', labelUz: '2-tomon', labelRu: 'Сторона 2', required: true },
-      { key: 'subject', labelUz: 'Shartnoma predmeti', labelRu: 'Предмет договора', required: true },
-      { key: 'amount', labelUz: "To'lov summasi", labelRu: 'Сумма оплаты', required: false },
-      { key: 'duration', labelUz: 'Muddati', labelRu: 'Срок', required: false },
-    ],
-  },
-  {
-    code: 'ishonchnoma',
-    nameUz: 'Ishonchnoma',
-    nameRu: 'Доверенность',
-    fields: [
-      { key: 'principal', labelUz: 'Ishonchnom beruvchi', labelRu: 'Доверитель', required: true },
-      { key: 'agent', labelUz: 'Vakillik oluvchi', labelRu: 'Поверенный', required: true },
-      { key: 'powers', labelUz: 'Vakolatlar', labelRu: 'Полномочия', required: true },
-      { key: 'validUntil', labelUz: 'Amal qilish muddati', labelRu: 'Действительна до', required: false },
-    ],
-  },
-];
 
 // ─── Service ─────────────────────────────────────────────────────────────────
 
@@ -120,13 +52,19 @@ export class DocumentGeneratorService {
       .join('\n');
 
     const langLabel = dto.language === Language.UZ ? "o'zbek" : 'rus';
+    const typeInfo = DOCUMENT_TYPE_MAP.get(dto.documentType);
+    const typeName =
+      dto.language === Language.UZ
+        ? (typeInfo?.nameUz ?? dto.documentType)
+        : (typeInfo?.nameRu ?? dto.documentType);
+    const structureHint = typeInfo?.promptHint ? `\nTuzilma bo'yicha yo'riqnoma: ${typeInfo.promptHint}` : '';
 
     const prompt =
-      `Siz rasmiy hujjat yozuvchisisiz. ` +
-      `Quyidagi ma'lumotlar asosida "${dto.documentType}" hujjatini ${langLabel} tilida yozing.\n` +
-      `Hujjat rasmiy uslubda, to'liq va kompetentli bo'lishi kerak.\n\n` +
+      `Siz O'zbekiston qonunchiligiga muvofiq rasmiy hujjatlar tuzuvchi yuridik mutaxassissiz. ` +
+      `Quyidagi ma'lumotlar asosida "${typeName}" hujjatini ${langLabel} tilida professional, ` +
+      `rasmiy ish uslubida, to'liq va huquqiy jihatdan to'g'ri tuzing.${structureHint}\n\n` +
       `Ma'lumotlar:\n${answersText}\n\n` +
-      `Faqat hujjat matnini yozing, boshqa izoh yozma.`;
+      `Faqat hujjatning to'liq matnini qaytaring, hech qanday izoh yoki tushuntirish qo'shmang.`;
 
     // 3. Call AI
     let content: string;
