@@ -7,8 +7,34 @@ on:
 
 jobs:
   backend:
-    name: Backend (API) — build, test, lint
+    name: Backend (API) — build, test, e2e, lint
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: adolat_ai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/adolat_ai?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci_access_secret_key_1234567890
+      JWT_REFRESH_SECRET: ci_refresh_secret_key_1234567890
+      ADMIN_DEFAULT_EMAIL: admin@ci.test
+      ADMIN_DEFAULT_PASSWORD: Admin12345!
+      AI_ENABLE_TEST_ENDPOINT: 'false'
     steps:
       - uses: actions/checkout@v4
 
@@ -27,11 +53,17 @@ jobs:
       - name: Prisma generate
         run: npm run prisma:generate --workspace=apps/api
 
+      - name: Apply migrations
+        run: npm run prisma:deploy --workspace=apps/api
+
       - name: Build API
         run: npm run build --workspace=apps/api
 
-      - name: Run API tests (with coverage)
+      - name: Run API unit tests (with coverage)
         run: npm run test:cov --workspace=apps/api
+
+      - name: Run API e2e tests
+        run: npm run test:e2e --workspace=apps/api
 
       - name: Lint API
         run: npm run lint --workspace=apps/api
