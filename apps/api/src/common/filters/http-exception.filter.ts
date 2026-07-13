@@ -1,6 +1,8 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
 
+import { captureException } from '../monitoring/sentry.util';
+
 export interface ErrorResponseBody {
   success: false;
   statusCode: number;
@@ -46,6 +48,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
         `${request.method} ${request.url} -> ${statusCode}: ${message}`,
         exception instanceof Error ? exception.stack : undefined,
       );
+      // 5xx xatolarni Sentry'ga yuboramiz (yoqilgan bo'lsa)
+      captureException(exception);
     }
 
     response.status(statusCode).json(body);
