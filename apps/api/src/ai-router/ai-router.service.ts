@@ -58,6 +58,7 @@ export class AiRouterService {
   private readonly chain: AiProviderName[];
   private readonly timeoutMs: number;
   private readonly retryCount: number;
+  private readonly models: Record<AiProviderName, string>;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -75,6 +76,11 @@ export class AiRouterService {
     const ai = this.configService.get('ai', { infer: true });
     this.timeoutMs = ai.timeoutMs;
     this.retryCount = ai.retryCount;
+    this.models = {
+      openai: ai.openai.model,
+      gemini: ai.gemini.model,
+      claude: ai.claude.model,
+    };
 
     const order: AiProviderName[] = [ai.primaryProvider, ai.fallbackProvider];
     if (ai.fallbackProvider2) {
@@ -231,6 +237,126 @@ export class AiRouterService {
       fallbackUsed,
       latencyMs: result.latencyMs,
     };
+  }
+
+  /**
+   * RAG context asosida javobni OQIM (SSE) sifatida generatsiya qiladi.
+   * Har bir token deltasi uchun `onToken` chaqiriladi. Token yuborilmasidan
+   * oldin provayder xato bersa, keyingi provayderga o'tiladi (fallback).
+   */
+  async streamLegalAnswer(
+    input: {
+      userId?: string;
+      question: string;
+      language: AnswerLanguage;
+      context: AiContextItemDto[];
+    },
+    onToken: (delta: string) => void,
+  ): Promise<LegalAnswerResult> {
+    const primaryProvider = this.chain[0];
+    const prismaLanguage = input.language === 'UZ' ? Language.UZ : Language.RU;
+    const langCode = input.language === 'UZ' ? 'uz' : 'ru';
+
+    const contextStr = input.context
+      .map((item, i) => {
+        const lines = [`[${i + 1}] ${item.sourceName} — ${item.title}`];
+        if (item.date) lines.push(`Sana: ${item.date}`);
+        if (item.url) lines.push(`Havola: ${item.url}`);
+        lines.push(item.content);
+        return lines.join('\n');
+      })
+      .join('\n\n---\n\n');
+
+    const request: AiCompletionRequest = {
+      systemPrompt: buildLegalSystemPrompt(contextStr),
+      messages: [{ role: 'user', content: input.question }],
+      language: langCode,
+    };
+
+    const startedAt = Date.now();
+    let content = '';
+    let emitted = false;
+    let usedProvider: AiProviderName | null = null;
+
+    for (const providerName of this.chain) {
+      const client = this.clients[providerName];
+      if (!client.isConfigured) continue;
+
+      try {
+        if (client.stream) {
+          for await (const delta of client.stream(request, this.timeoutMs)) {
+            content += delta;
+            emitted = true;
+            onToken(delta);
+          }
+        } else {
+          const res = await client.complete(request, this.timeoutMs);
+          content = res.content;
+          emitted = true;
+          onToken(res.content);
+        }
+        usedProvider = providerName;
+        break;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Noma\'lum xatolik';
+        this.logger.warn(`${providerName} stream muvaffaqiyatsiz: ${msg}`);
+        // Token allaqachon yuborilgan bo'lsa — fallback mumkin emas
+        if (emitted) throw err;
+      }
+    }
+
+    if (!usedProvider || content.length === 0) {
+      await this.logStreamRequest(input.userId, prismaLanguage, primaryProvider, null, '', AiRequestStatus.FAILED, 0);
+      throw new AiProviderError(primaryProvider, 'AI stream javob bera olmadi');
+    }
+
+    const latencyMs = Date.now() - startedAt;
+    const fallbackUsed = usedProvider !== primaryProvider;
+    const model = this.models[usedProvider];
+
+    await this.logStreamRequest(
+      input.userId,
+      prismaLanguage,
+      primaryProvider,
+      usedProvider,
+      model,
+      fallbackUsed ? AiRequestStatus.FALLBACK_USED : AiRequestStatus.SUCCESS,
+      Math.round(content.length / 4),
+      latencyMs,
+    );
+
+    return { answer: content, provider: usedProvider, model, fallbackUsed, latencyMs };
+  }
+
+  private async logStreamRequest(
+    userId: string | undefined,
+    language: Language,
+    primaryProvider: AiProviderName,
+    finalProvider: AiProviderName | null,
+    finalModel: string,
+    status: AiRequestStatus,
+    completionTokens: number,
+    latencyMs = 0,
+  ): Promise<void> {
+    await this.prisma.aiRequest
+      .create({
+        data: {
+          userId: userId ?? null,
+          feature: 'legal_answer_stream',
+          language,
+          primaryProvider: PROVIDER_ENUM_MAP[primaryProvider],
+          finalProvider: finalProvider ? PROVIDER_ENUM_MAP[finalProvider] : null,
+          finalModel: finalModel || null,
+          status,
+          promptTokens: 0,
+          completionTokens,
+          latencyMs,
+          estimatedCostUsd: 0,
+          fallbackChain: [],
+          errorMessage: status === AiRequestStatus.FAILED ? 'stream failed' : null,
+        },
+      })
+      .catch(() => undefined);
   }
 
   /** Admin panel uchun: har provayderning sozlanganlik holatini qaytaradi */

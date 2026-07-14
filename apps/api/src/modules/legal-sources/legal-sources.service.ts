@@ -1,13 +1,19 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { LegalSourceStatus, Prisma, SyncJobStatus } from '@prisma/client';
 
 import { PrismaService } from '../../database/prisma/prisma.service';
+import { IngestionService } from '../ingestion/ingestion.service';
 import { CreateLegalSourceDto } from './dto/create-legal-source.dto';
 import { UpdateLegalSourceDto } from './dto/update-legal-source.dto';
 
 @Injectable()
 export class LegalSourcesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(LegalSourcesService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ingestion: IngestionService,
+  ) {}
 
   async findAll() {
     const sources = await this.prisma.legalSource.findMany({
@@ -88,12 +94,19 @@ export class LegalSourcesService {
 
   async triggerSync(sourceId: string, adminId?: string) {
     await this.findOne(sourceId);
-    return this.prisma.sourceSyncJob.create({
+    const job = await this.prisma.sourceSyncJob.create({
       data: {
         sourceId,
         status: SyncJobStatus.PENDING,
         triggeredByAdminId: adminId ?? null,
       },
     });
+
+    // Sinxronni fon rejimida ishga tushiramiz (HTTP javobni bloklamaydi).
+    void this.ingestion.syncSource(job.id, sourceId).catch((err) => {
+      this.logger.error(`Qo'lda sinxron ${job.id} muvaffaqiyatsiz: ${String(err)}`);
+    });
+
+    return job;
   }
 }

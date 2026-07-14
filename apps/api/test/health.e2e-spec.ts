@@ -1,32 +1,35 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { AppModule } from '../src/app.module';
 
-describe('Health (e2e)', () => {
+import { createTestApp } from './setup-app';
+
+describe('Health & metrics (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    app.setGlobalPrefix('api/v1');
-    await app.init();
+    app = await createTestApp();
   });
 
   afterAll(async () => {
     await app.close();
   });
 
-  it('/api/v1/health (GET) returns ok status', () => {
-    return request(app.getHttpServer())
-      .get('/api/v1/health')
-      .expect(200)
-      .expect((res: request.Response) => {
-        expect(res.body.status).toBe('ok');
-        expect(res.body.service).toBe('adolat-ai-api');
-      });
+  it('GET /api/v1/health returns ok', async () => {
+    const res = await request(app.getHttpServer()).get('/api/v1/health').expect(200);
+    // Javob ResponseInterceptor bilan o'raladi: { success, data, ... }
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.status).toBe('ok');
+    expect(res.body.data.service).toBe('adolat-ai-api');
+  });
+
+  it('GET /api/v1/health/db reports database readiness', async () => {
+    const res = await request(app.getHttpServer()).get('/api/v1/health/db');
+    expect([200, 503]).toContain(res.status);
+    expect(res.body.data.database).toBeDefined();
+  });
+
+  it('GET /api/v1/metrics exposes Prometheus text', async () => {
+    const res = await request(app.getHttpServer()).get('/api/v1/metrics').expect(200);
+    expect(res.text).toContain('http_request_duration_seconds');
   });
 });

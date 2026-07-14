@@ -1,12 +1,33 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { LegalSourceStatus, LegalSourceType } from '@prisma/client';
+import { LegalSourceStatus, LegalSourceType, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../../database/prisma/prisma.service';
 import { EmbeddingService } from '../../ingestion/services/embedding.service';
 import { RagChunk } from '../rag.service';
 
 const TOP_K = 8;
+/** Nomzodlar soni (fusion'dan oldin har bir usuldan olinadi). */
+const CANDIDATES = TOP_K * 3;
+/** Reciprocal Rank Fusion konstantasi (standart 60). */
+const RRF_K = 60;
+
+/** pgvector cosine qidiruvi qaytaradigan xom qator. */
+interface RetrievedRow {
+  id: string;
+  content: string;
+  articleRef: string | null;
+  documentTitle: string;
+  documentUrl: string;
+  publishedAt: Date | null;
+  sourceName: string;
+  similarity: number;
+}
+
+interface Candidate {
+  id: string;
+  chunk: RagChunk;
+}
 
 @Injectable()
 export class RetrievalService {
@@ -23,88 +44,116 @@ export class RetrievalService {
   }
 
   /**
-   * Retrieve the most relevant chunks for a query.
-   * Uses cosine similarity on stored embeddings when available,
-   * falls back to PostgreSQL ILIKE full-text search when embeddings are absent.
+   * Eng mos chunk'larni topadi.
+   *
+   * Embedding mavjud bo'lsa — **hybrid qidiruv**: pgvector (semantik) va
+   * keyword (ILIKE) natijalari Reciprocal Rank Fusion (RRF) bilan birlashtiriladi.
+   * Embedding bo'lmasa — faqat keyword qidiruvga qaytadi.
    */
-  async retrieve(
+  async retrieve(queryText: string, sourceTypes?: LegalSourceType[]): Promise<RagChunk[]> {
+    const queryEmbedding = await this.embedding.embed(queryText);
+
+    if (queryEmbedding.length > 0) {
+      return this.retrieveHybrid(queryEmbedding, queryText, sourceTypes);
+    }
+
+    this.logger.warn('Embedding mavjud emas — faqat keyword qidiruv');
+    const kw = await this.keywordSearch(queryText, sourceTypes, TOP_K);
+    return kw.map((c) => c.chunk);
+  }
+
+  /**
+   * Hybrid: vector + keyword natijalarini RRF bilan birlashtiradi.
+   * RRF skori = Σ 1 / (RRF_K + rank). Sifat uchun: keyword mos kelgan yoki
+   * vector o'xshashligi chegaradan yuqori chunk'lar saqlanadi.
+   */
+  private async retrieveHybrid(
+    queryEmbedding: number[],
     queryText: string,
     sourceTypes?: LegalSourceType[],
   ): Promise<RagChunk[]> {
-    const queryEmbedding = await this.embedding.embed(queryText);
-    const useEmbeddings = queryEmbedding.length > 0;
+    const [vector, keyword] = await Promise.all([
+      this.vectorSearch(queryEmbedding, sourceTypes, CANDIDATES),
+      this.keywordSearch(queryText, sourceTypes, CANDIDATES),
+    ]);
 
-    if (useEmbeddings) {
-      return this.retrieveByEmbedding(queryEmbedding, sourceTypes);
-    } else {
-      this.logger.warn('No embedding available — falling back to full-text search');
-      return this.retrieveByFullText(queryText, sourceTypes);
-    }
-  }
+    const fused = new Map<string, number>();
+    const byId = new Map<string, RagChunk>();
+    const vectorSim = new Map<string, number>();
+    const keywordIds = new Set<string>();
 
-  private async retrieveByEmbedding(
-    queryEmbedding: number[],
-    sourceTypes?: LegalSourceType[],
-  ): Promise<RagChunk[]> {
-    // Fetch chunks from enabled sources (optionally filtered by type)
-    const chunks = await this.prisma.legalSourceChunk.findMany({
-      where: {
-        version: {
-          source: {
-            status: LegalSourceStatus.ACTIVE,
-            ...(sourceTypes && sourceTypes.length > 0
-              ? { type: { in: sourceTypes } }
-              : {}),
-          },
-        },
-        embeddingRef: { not: null },
-      },
-      include: {
-        version: {
-          include: { source: true },
-        },
-      },
+    vector.forEach((c, rank) => {
+      fused.set(c.id, (fused.get(c.id) ?? 0) + 1 / (RRF_K + rank));
+      byId.set(c.id, c.chunk);
+      vectorSim.set(c.id, c.chunk.similarity);
     });
 
-    // Compute cosine similarity for each chunk
-    const scored: Array<{ chunk: typeof chunks[0]; similarity: number }> = [];
+    keyword.forEach((c, rank) => {
+      fused.set(c.id, (fused.get(c.id) ?? 0) + 1 / (RRF_K + rank));
+      if (!byId.has(c.id)) byId.set(c.id, c.chunk);
+      keywordIds.add(c.id);
+    });
 
-    for (const chunk of chunks) {
-      if (!chunk.embeddingRef) continue;
+    return [...fused.entries()]
+      .filter(([id]) => keywordIds.has(id) || (vectorSim.get(id) ?? 0) >= this.similarityThreshold)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, TOP_K)
+      .map(([id]) => byId.get(id))
+      .filter((c): c is RagChunk => Boolean(c));
+  }
 
-      let chunkEmbedding: number[];
-      try {
-        chunkEmbedding = JSON.parse(chunk.embeddingRef) as number[];
-      } catch {
-        continue;
-      }
+  /** pgvector ANN qidiruvi (`<=>` cosine masofa). */
+  private async vectorSearch(
+    queryEmbedding: number[],
+    sourceTypes: LegalSourceType[] | undefined,
+    limit: number,
+  ): Promise<Candidate[]> {
+    const vectorLiteral = `[${queryEmbedding.join(',')}]`;
+    const typeFilter =
+      sourceTypes && sourceTypes.length > 0
+        ? Prisma.sql`AND s."type"::text = ANY(${sourceTypes.map((t) => String(t))})`
+        : Prisma.empty;
 
-      const similarity = this.embedding.cosineSimilarity(queryEmbedding, chunkEmbedding);
-      if (similarity >= this.similarityThreshold) {
-        scored.push({ chunk, similarity });
-      }
-    }
+    const rows = await this.prisma.$queryRaw<RetrievedRow[]>`
+      SELECT
+        c."id"                                             AS "id",
+        c."content"                                        AS "content",
+        c."article_ref"                                    AS "articleRef",
+        v."document_title"                                 AS "documentTitle",
+        v."document_url"                                   AS "documentUrl",
+        v."published_at"                                   AS "publishedAt",
+        s."name"                                           AS "sourceName",
+        1 - (c."embedding" <=> ${vectorLiteral}::vector)   AS "similarity"
+      FROM "legal_source_chunks" c
+      JOIN "legal_source_versions" v ON v."id" = c."version_id"
+      JOIN "legal_sources" s ON s."id" = v."source_id"
+      WHERE c."embedding" IS NOT NULL
+        AND s."status" = ${LegalSourceStatus.ACTIVE}::"LegalSourceStatus"
+        ${typeFilter}
+      ORDER BY c."embedding" <=> ${vectorLiteral}::vector
+      LIMIT ${limit}
+    `;
 
-    // Sort descending and take top K
-    scored.sort((a, b) => b.similarity - a.similarity);
-    const topChunks = scored.slice(0, TOP_K);
-
-    return topChunks.map(({ chunk, similarity }) => ({
-      content: chunk.content,
-      sourceName: chunk.version.source.name,
-      documentTitle: chunk.version.documentTitle,
-      documentUrl: chunk.version.documentUrl,
-      articleRef: chunk.articleRef ?? undefined,
-      publishedAt: chunk.version.publishedAt ?? undefined,
-      similarity,
+    return rows.map((r) => ({
+      id: r.id,
+      chunk: {
+        content: r.content,
+        sourceName: r.sourceName,
+        documentTitle: r.documentTitle,
+        documentUrl: r.documentUrl,
+        articleRef: r.articleRef ?? undefined,
+        publishedAt: r.publishedAt ?? undefined,
+        similarity: Number(r.similarity),
+      },
     }));
   }
 
-  private async retrieveByFullText(
+  /** Keyword (ILIKE) qidiruvi — so'zlar bo'yicha mos kelgan chunk'lar. */
+  private async keywordSearch(
     queryText: string,
-    sourceTypes?: LegalSourceType[],
-  ): Promise<RagChunk[]> {
-    // Extract meaningful terms (>3 chars, max 6 terms)
+    sourceTypes: LegalSourceType[] | undefined,
+    limit: number,
+  ): Promise<Candidate[]> {
     const terms = queryText
       .split(/\s+/)
       .map((t) => t.replace(/[^\wЀ-ӿЀ-ԯ]/g, ''))
@@ -120,9 +169,7 @@ export class RetrievalService {
             version: {
               source: {
                 status: LegalSourceStatus.ACTIVE,
-                ...(sourceTypes && sourceTypes.length > 0
-                  ? { type: { in: sourceTypes } }
-                  : {}),
+                ...(sourceTypes && sourceTypes.length > 0 ? { type: { in: sourceTypes } } : {}),
               },
             },
           },
@@ -133,36 +180,31 @@ export class RetrievalService {
           },
         ],
       },
-      include: {
-        version: {
-          include: { source: true },
-        },
-      },
-      take: TOP_K * 4, // Fetch more, then re-rank by term-hit count
+      include: { version: { include: { source: true } } },
+      take: limit * 2,
     });
 
-    // Score by how many query terms appear in the chunk content
     const lowerQuery = queryText.toLowerCase();
-    const scored = chunks
+    return chunks
       .map((chunk) => {
         const lower = chunk.content.toLowerCase();
         const hitCount = terms.filter((t) => lower.includes(t.toLowerCase())).length;
-        // Bonus if the chunk content includes the full query phrase
-        const phraseBonus = lower.includes(lowerQuery.slice(0, 40).toLowerCase()) ? 1 : 0;
+        const phraseBonus = lower.includes(lowerQuery.slice(0, 40)) ? 1 : 0;
         return { chunk, score: hitCount + phraseBonus };
       })
       .sort((a, b) => b.score - a.score)
-      .slice(0, TOP_K);
-
-    return scored.map(({ chunk, score }) => ({
-      content: chunk.content,
-      sourceName: chunk.version.source.name,
-      documentTitle: chunk.version.documentTitle,
-      documentUrl: chunk.version.documentUrl,
-      articleRef: chunk.articleRef ?? undefined,
-      publishedAt: chunk.version.publishedAt ?? undefined,
-      // Normalised placeholder: max possible = terms.length + 1 (phrase bonus)
-      similarity: Math.min(score / (terms.length + 1), 0.65),
-    }));
+      .slice(0, limit)
+      .map(({ chunk, score }) => ({
+        id: chunk.id,
+        chunk: {
+          content: chunk.content,
+          sourceName: chunk.version.source.name,
+          documentTitle: chunk.version.documentTitle,
+          documentUrl: chunk.version.documentUrl,
+          articleRef: chunk.articleRef ?? undefined,
+          publishedAt: chunk.version.publishedAt ?? undefined,
+          similarity: Math.min(score / (terms.length + 1), 0.65),
+        },
+      }));
   }
 }

@@ -7,10 +7,11 @@ import { RagService } from './rag.service';
 import { RetrievalService } from './services/retrieval.service';
 import { SourceRouterService } from './services/source-router.service';
 import { ContextBuilderService } from './services/context-builder.service';
+import { CitationService } from './services/citation.service';
 
 @Module({
   imports: [PrismaModule, AiRouterModule, IngestionModule],
-  providers: [RagService, RetrievalService, SourceRouterService, ContextBuilderService],
-  exports: [RagService, RetrievalService, SourceRouterService, ContextBuilderService],
+  providers: [RagService, RetrievalService, SourceRouterService, ContextBuilderService, CitationService],
+  exports: [RagService, RetrievalService, SourceRouterService, ContextBuilderService, CitationService],
 })
 export class RagModule {}

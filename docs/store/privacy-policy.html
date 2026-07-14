@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maxfiylik siyosati — Adolat AI</title>
+  <style>
+    :root { --fg:#1a1a1a; --muted:#555; --bg:#fff; --accent:#1b5e3f; --line:#e5e5e5; }
+    @media (prefers-color-scheme: dark){ :root{ --fg:#e8e8e8; --muted:#aaa; --bg:#111; --accent:#4caf82; --line:#2a2a2a; } }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--fg); background:var(--bg); line-height:1.65; }
+    .wrap { max-width:760px; margin:0 auto; padding:32px 20px 80px; }
+    h1 { font-size:1.7rem; margin:0 0 4px; }
+    h2 { font-size:1.2rem; margin:32px 0 8px; color:var(--accent); }
+    p, li { color:var(--fg); }
+    .muted { color:var(--muted); font-size:.92rem; }
+    a { color:var(--accent); }
+    .toggle { display:flex; gap:8px; margin:16px 0 24px; }
+    .toggle button { padding:6px 16px; border:1px solid var(--line); background:transparent; color:var(--fg); border-radius:8px; cursor:pointer; font-size:.9rem; }
+    .toggle button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .lang { display:none; }
+    .lang.active { display:block; }
+    table { width:100%; border-collapse:collapse; margin:8px 0; font-size:.92rem; }
+    th, td { border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top; }
+    .note { background:rgba(27,94,63,.08); border-left:3px solid var(--accent); padding:12px 14px; border-radius:6px; margin:12px 0; }
+    code { background:rgba(127,127,127,.15); padding:1px 5px; border-radius:4px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="toggle">
+    <button id="btn-uz" class="active" onclick="setLang('uz')">O‘zbekcha</button>
+    <button id="btn-ru" onclick="setLang('ru')">Русский</button>
+  </div>
+
+  <!-- ============ TO'LDIRING ============
+       [KOMPANIYA] — yuridik nom (masalan «Adolat AI» MChJ yoki jismoniy shaxs)
+       [EMAIL]     — aloqa (masalan support@adolat.uz)
+       [DOMEN]     — domeningiz
+       [SANA]      — kuchga kirish sanasi
+  ==================================== -->
+
+  <!-- ==================== UZBEK ==================== -->
+  <section id="lang-uz" class="lang active">
+    <h1>Maxfiylik siyosati</h1>
+    <p class="muted">Ilova: <strong>Adolat AI</strong> · Kuchga kirish sanasi: <strong>[SANA]</strong></p>
+
+    <p>Ushbu Maxfiylik siyosati <strong>[KOMPANIYA]</strong> (keyingi o‘rinlarda «biz») tomonidan taqdim etiladigan
+      <strong>Adolat AI</strong> mobil ilovasi va tegishli xizmatlar orqali qanday shaxsiy ma’lumotlar
+      yig‘ilishi, ishlatilishi va himoyalanishini tushuntiradi. Ilovadan foydalanish orqali siz ushbu
+      siyosatga rozilik bildirasiz.</p>
+
+    <div class="note">
+      <strong>Muhim (huquqiy eslatma):</strong> Adolat AI — sun’iy intellektga asoslangan axborot yordamchisi.
+      Ilova javoblari ma’lumot xarakteriga ega bo‘lib, professional yuridik maslahat o‘rnini bosmaydi va
+      advokat–mijoz munosabatini vujudga keltirmaydi. Muhim masalalarda malakali yurist bilan maslahatlashing.
+    </div>
+
+    <h2>1. Biz yig‘adigan ma’lumotlar</h2>
+    <table>
+      <tr><th>Toifa</th><th>Ma’lumotlar</th></tr>
+      <tr><td>Hisob</td><td>Telefon raqami va/yoki elektron pochta, ism, parol (shifrlangan holda saqlanadi), interfeys tili</td></tr>
+      <tr><td>Kontent</td><td>Chat savollari, yuklangan hujjatlar, yaratilgan hujjatlar, xatcho‘plar, fikr-mulohazalar</td></tr>
+      <tr><td>Foydalanish</td><td>AI so‘rovlari, xizmatdan foydalanish hisoblagichlari</td></tr>
+      <tr><td>Texnik / qurilma</td><td>IP-manzil, qurilma va brauzer ma’lumoti (User-Agent), sessiya ma’lumotlari, push-bildirishnoma tokeni, taxminiy qurilma identifikatori</td></tr>
+      <tr><td>To‘lov</td><td>Obuna/hisob-faktura holati va summasi. <strong>Karta ma’lumotlarini biz saqlamaymiz</strong> — to‘lovlar Click/Payme orqali amalga oshiriladi.</td></tr>
+    </table>
+
+    <h2>2. Ma’lumotlardan foydalanish maqsadlari</h2>
+    <ul>
+      <li>Ro‘yxatdan o‘tkazish, kirish va hisobni boshqarish (OTP tasdiqlash)</li>
+      <li>Huquqiy AI xizmatlarini ko‘rsatish (chat, hujjat tahlili va generatsiyasi)</li>
+      <li>Obuna va to‘lovlarni qayta ishlash</li>
+      <li>Bildirishnomalar yuborish va texnik yordam ko‘rsatish</li>
+      <li>Xavfsizlik, firibgarlikning oldini olish va xizmatni yaxshilash</li>
+    </ul>
+
+    <h2>3. Uchinchi tomon xizmatlari</h2>
+    <p>Xizmatni ko‘rsatish uchun quyidagi provayderlarga zarur ma’lumotlar uzatilishi mumkin:</p>
+    <ul>
+      <li><strong>Google Gemini (AI)</strong> — savol va hujjat matnlari javob generatsiyasi uchun</li>
+      <li><strong>Click / Payme</strong> — to‘lovlarni amalga oshirish</li>
+      <li><strong>Firebase Cloud Messaging</strong> — push-bildirishnomalar</li>
+      <li><strong>Email (SMTP) provayderi</strong> — tasdiqlash va xabar xatlari</li>
+      <li><strong>Bulutli hosting/saqlash</strong> — ma’lumotlarni saqlash</li>
+    </ul>
+
+    <h2>4. Ma’lumotlarni saqlash va o‘chirish</h2>
+    <p>Ma’lumotlar xizmat ko‘rsatish uchun zarur bo‘lgan muddat davomida saqlanadi. Siz istalgan vaqtda
+      hisobingizni o‘chirishni so‘rashingiz mumkin — bu holda shaxsiy ma’lumotlaringiz qonun talab qilgan
+      hollardan tashqari o‘chiriladi.</p>
+
+    <h2>5. Sizning huquqlaringiz</h2>
+    <p>Siz o‘z ma’lumotlaringizga kirish, ularni to‘g‘rilash yoki o‘chirishni so‘rash huquqiga egasiz.
+      Murojaat uchun: <a href="mailto:[EMAIL]">[EMAIL]</a>.</p>
+
+    <h2>6. Xavfsizlik</h2>
+    <p>Parollar shifrlanadi (Argon2), ma’lumotlar HTTPS orqali uzatiladi, kirish nazorat qilinadi.
+      Biroq internetdagi hech qanday tizim 100% xavfsizlikni kafolatlay olmaydi.</p>
+
+    <h2>7. Bolalar</h2>
+    <p>Ilova 18 yoshga to‘lmagan shaxslar uchun mo‘ljallanmagan.</p>
+
+    <h2>8. O‘zgartirishlar</h2>
+    <p>Ushbu siyosat vaqti-vaqti bilan yangilanishi mumkin. Yangilangan versiya ushbu sahifada e’lon qilinadi.</p>
+
+    <h2>9. Aloqa</h2>
+    <p><strong>[KOMPANIYA]</strong><br />Email: <a href="mailto:[EMAIL]">[EMAIL]</a><br />Veb: https://[DOMEN]</p>
+  </section>
+
+  <!-- ==================== RUSSIAN ==================== -->
+  <section id="lang-ru" class="lang">
+    <h1>Политика конфиденциальности</h1>
+    <p class="muted">Приложение: <strong>Adolat AI</strong> · Дата вступления в силу: <strong>[SANA]</strong></p>
+
+    <p>Настоящая Политика конфиденциальности объясняет, как <strong>[KOMPANIYA]</strong> (далее «мы»)
+      собирает, использует и защищает персональные данные через мобильное приложение <strong>Adolat AI</strong>
+      и связанные с ним сервисы. Используя приложение, вы соглашаетесь с настоящей Политикой.</p>
+
+    <div class="note">
+      <strong>Важно (юридическое уведомление):</strong> Adolat AI — информационный помощник на базе
+      искусственного интеллекта. Ответы приложения носят информационный характер, не заменяют
+      профессиональную юридическую консультацию и не создают отношений «адвокат–клиент».
+    </div>
+
+    <h2>1. Какие данные мы собираем</h2>
+    <table>
+      <tr><th>Категория</th><th>Данные</th></tr>
+      <tr><td>Аккаунт</td><td>Номер телефона и/или email, имя, пароль (в зашифрованном виде), язык интерфейса</td></tr>
+      <tr><td>Контент</td><td>Вопросы в чате, загруженные документы, сгенерированные документы, закладки, отзывы</td></tr>
+      <tr><td>Использование</td><td>AI-запросы, счётчики использования сервиса</td></tr>
+      <tr><td>Технические / устройство</td><td>IP-адрес, сведения об устройстве и браузере (User-Agent), данные сессии, токен push-уведомлений, приблизительный идентификатор устройства</td></tr>
+      <tr><td>Платежи</td><td>Статус и сумма подписки/счёта. <strong>Данные карт мы не храним</strong> — платежи через Click/Payme.</td></tr>
+    </table>
+
+    <h2>2. Цели использования данных</h2>
+    <ul>
+      <li>Регистрация, вход и управление аккаунтом (подтверждение OTP)</li>
+      <li>Предоставление AI-услуг (чат, анализ и генерация документов)</li>
+      <li>Обработка подписок и платежей</li>
+      <li>Отправка уведомлений и поддержка</li>
+      <li>Безопасность, предотвращение мошенничества и улучшение сервиса</li>
+    </ul>
+
+    <h2>3. Сторонние сервисы</h2>
+    <ul>
+      <li><strong>Google Gemini (AI)</strong> — обработка текста запросов и документов</li>
+      <li><strong>Click / Payme</strong> — проведение платежей</li>
+      <li><strong>Firebase Cloud Messaging</strong> — push-уведомления</li>
+      <li><strong>Email (SMTP)</strong> — письма подтверждения и уведомления</li>
+      <li><strong>Облачный хостинг/хранилище</strong> — хранение данных</li>
+    </ul>
+
+    <h2>4. Хранение и удаление данных</h2>
+    <p>Данные хранятся в течение необходимого для оказания услуги срока. Вы можете запросить удаление
+      аккаунта — персональные данные будут удалены, кроме случаев, предусмотренных законом.</p>
+
+    <h2>5. Ваши права</h2>
+    <p>Вы вправе запросить доступ, исправление или удаление своих данных: <a href="mailto:[EMAIL]">[EMAIL]</a>.</p>
+
+    <h2>6. Безопасность</h2>
+    <p>Пароли шифруются (Argon2), данные передаются по HTTPS, доступ контролируется. Однако ни одна система
+      не гарантирует 100% защиту.</p>
+
+    <h2>7. Дети</h2>
+    <p>Приложение не предназначено для лиц младше 18 лет.</p>
+
+    <h2>8. Изменения</h2>
+    <p>Политика может обновляться. Актуальная версия публикуется на этой странице.</p>
+
+    <h2>9. Контакты</h2>
+    <p><strong>[KOMPANIYA]</strong><br />Email: <a href="mailto:[EMAIL]">[EMAIL]</a><br />Веб: https://[DOMEN]</p>
+  </section>
+</div>
+
+<script>
+  function setLang(l){
+    document.getElementById('lang-uz').classList.toggle('active', l==='uz');
+    document.getElementById('lang-ru').classList.toggle('active', l==='ru');
+    document.getElementById('btn-uz').classList.toggle('active', l==='uz');
+    document.getElementById('btn-ru').classList.toggle('active', l==='ru');
+    document.documentElement.lang = l;
+  }
+</script>
+</body>
+</html>

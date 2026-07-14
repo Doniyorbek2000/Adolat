@@ -69,19 +69,42 @@ export const envValidationSchema = Joi.object({
   ADMIN_DEFAULT_EMAIL: Joi.string().email({ tlds: false }).required(),
   ADMIN_DEFAULT_PASSWORD: Joi.string().min(8).required(),
 
-  EMBEDDINGS_PROVIDER: Joi.string().valid('openai').default('openai'),
-  EMBEDDINGS_MODEL: Joi.string().default('text-embedding-3-small'),
+  EMBEDDINGS_PROVIDER: Joi.string().valid('gemini', 'openai').default('gemini'),
+  EMBEDDINGS_MODEL: Joi.string().default('text-embedding-004'),
+  EMBEDDINGS_DIMENSIONS: Joi.number().default(768),
 
   STT_PROVIDER: Joi.string().valid('openai').default('openai'),
   TTS_PROVIDER: Joi.string().valid('openai').default('openai'),
 
-  FCM_SERVER_KEY: Joi.string().allow('').default(''),
+  FCM_PROJECT_ID: Joi.string().allow('').default(''),
+  FCM_CLIENT_EMAIL: Joi.string().allow('').default(''),
+  FCM_PRIVATE_KEY: Joi.string().allow('').default(''),
 
   MAX_FILE_SIZE_MB: Joi.number().default(50),
   UPLOAD_DIR: Joi.string().default('./uploads'),
 
   INGESTION_CONCURRENCY: Joi.number().default(3),
   SYNC_INTERVAL_DEFAULT_HOURS: Joi.number().default(24),
+  // Rasmiy manbalarni avtomatik sinxronlash (cron). Production'da true qiling.
+  INGESTION_AUTO_SYNC: Joi.boolean().default(false),
+
+  // Monitoring
+  SENTRY_DSN: Joi.string().allow('').default(''),
+  SENTRY_ENVIRONMENT: Joi.string().allow('').default(''),
+
+  // Ijtimoiy autentifikatsiya (Google / OneID)
+  GOOGLE_CLIENT_ID: Joi.string().allow('').default(''),
+  ONEID_CLIENT_ID: Joi.string().allow('').default(''),
+  ONEID_CLIENT_SECRET: Joi.string().allow('').default(''),
+  ONEID_AUTH_URL: Joi.string().allow('').default(''),
+  ONEID_TOKEN_URL: Joi.string().allow('').default(''),
+  ONEID_USERINFO_URL: Joi.string().allow('').default(''),
+  ONEID_REDIRECT_URI: Joi.string().allow('').default(''),
+  ONEID_SCOPE: Joi.string().allow('').default('myportal'),
+
+  // Veb-qidiruv (rasmiy manbalar, RAG fallback)
+  TAVILY_API_KEY: Joi.string().allow('').default(''),
+  BRAVE_API_KEY: Joi.string().allow('').default(''),
 
   RAG_MIN_SIMILARITY: Joi.number().min(0).max(1).default(0.70),
   RAG_TOP_K: Joi.number().min(1).max(20).default(8),

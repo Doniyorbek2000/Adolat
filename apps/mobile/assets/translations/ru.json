@@ -8,6 +8,9 @@
   "select_language": "Выберите язык",
   "uzbek": "O'zbekcha",
   "russian": "Русский",
+  "english": "Английский",
+  "turkish": "Турецкий",
+  "arabic": "Арабский",
   "home": "Главная",
   "chat": "Чат",
   "documents": "Документы",
@@ -108,5 +111,7 @@
   "terms_of_use": "Условия использования",
   "logout_confirm": "Вы хотите выйти из аккаунта?",
   "logout_confirm_yes": "Да, выйти",
-  "logout_confirm_no": "Отмена"
+  "logout_confirm_no": "Отмена",
+  "coming_soon": "Скоро",
+  "voice_coming_soon_desc": "Голосовой помощник появится совсем скоро. А пока вы можете задать вопрос в чате."
 }

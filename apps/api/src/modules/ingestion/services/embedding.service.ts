@@ -2,69 +2,115 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 
+type EmbeddingsProvider = 'gemini' | 'openai';
+
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+
+/**
+ * Matnlarni embedding vektorlariga aylantiradi.
+ *
+ * Standart provayder — **Gemini** (`text-embedding-004`, 768 o'lchov), shunda
+ * RAG semantik qidiruvi faqat Gemini API kaliti bilan ishlaydi. `openai` ham
+ * qo'llab-quvvatlanadi (`EMBEDDINGS_PROVIDER=openai`).
+ *
+ * DIQQAT: pgvector ustuni o'lchovi (`vector(768)`) tanlangan modelga mos
+ * bo'lishi shart. Modelni o'zgartirsangiz, DB ustunini migratsiya bilan yangilang.
+ */
 @Injectable()
 export class EmbeddingService {
   private readonly logger = new Logger(EmbeddingService.name);
-  private readonly client: OpenAI | null;
+  private readonly provider: EmbeddingsProvider;
   private readonly model: string;
 
+  // Provayderga xos
+  private readonly openai: OpenAI | null = null;
+  private readonly geminiApiKey: string;
+
   constructor(private readonly config: ConfigService) {
-    const apiKey = this.config.get<string>('OPENAI_API_KEY');
-    this.model = this.config.get<string>('EMBEDDINGS_MODEL') ?? 'text-embedding-3-small';
+    this.provider =
+      (this.config.get<string>('EMBEDDINGS_PROVIDER') as EmbeddingsProvider) ?? 'gemini';
+    this.model =
+      this.config.get<string>('EMBEDDINGS_MODEL') ??
+      (this.provider === 'openai' ? 'text-embedding-3-small' : 'text-embedding-004');
 
-    if (apiKey) {
-      this.client = new OpenAI({ apiKey });
-    } else {
-      this.client = null;
-      this.logger.warn(
-        'OPENAI_API_KEY is not set — EmbeddingService will return empty arrays.',
-      );
+    this.geminiApiKey = this.config.get<string>('GEMINI_API_KEY') ?? '';
+
+    if (this.provider === 'openai') {
+      const apiKey = this.config.get<string>('OPENAI_API_KEY');
+      if (apiKey) {
+        this.openai = new OpenAI({ apiKey });
+      } else {
+        this.logger.warn("OPENAI_API_KEY sozlanmagan — embeddings bo'sh massiv qaytaradi.");
+      }
+    } else if (!this.geminiApiKey) {
+      this.logger.warn("GEMINI_API_KEY sozlanmagan — embeddings bo'sh massiv qaytaradi.");
     }
   }
 
-  /**
-   * Embed a single text string.
-   * Returns an empty array if the OpenAI key is missing.
-   */
+  private get isConfigured(): boolean {
+    return this.provider === 'openai' ? this.openai !== null : Boolean(this.geminiApiKey);
+  }
+
+  /** Bitta matnni embed qiladi. Sozlanmagan bo'lsa bo'sh massiv qaytaradi. */
   async embed(text: string): Promise<number[]> {
-    if (!this.client) return [];
+    if (!this.isConfigured) return [];
     try {
-      const response = await this.client.embeddings.create({
-        model: this.model,
-        input: text,
-      });
-      return response.data[0].embedding;
+      const [vector] =
+        this.provider === 'openai'
+          ? await this.embedOpenAi([text])
+          : await this.embedGemini([text]);
+      return vector ?? [];
     } catch (err) {
-      this.logger.error(`embed() failed: ${String(err)}`);
+      this.logger.error(`embed() xato: ${String(err)}`);
       return [];
     }
   }
 
-  /**
-   * Embed multiple texts in a single API call.
-   * Returns an empty array-of-arrays if the OpenAI key is missing.
-   */
+  /** Bir nechta matnni bitta so'rovda embed qiladi. */
   async embedBatch(texts: string[]): Promise<number[][]> {
-    if (!this.client || texts.length === 0) return [];
+    if (!this.isConfigured || texts.length === 0) return [];
     try {
-      const response = await this.client.embeddings.create({
-        model: this.model,
-        input: texts,
-      });
-      // Preserve order (API guarantees index field)
-      return response.data
-        .sort((a, b) => a.index - b.index)
-        .map((item) => item.embedding);
+      return this.provider === 'openai'
+        ? await this.embedOpenAi(texts)
+        : await this.embedGemini(texts);
     } catch (err) {
-      this.logger.error(`embedBatch() failed: ${String(err)}`);
+      this.logger.error(`embedBatch() xato: ${String(err)}`);
       return [];
     }
   }
 
-  /**
-   * Cosine similarity between two vectors.
-   * Returns 0 if either vector is empty.
-   */
+  // ─── OpenAI ──────────────────────────────────────────────────────────────
+  private async embedOpenAi(texts: string[]): Promise<number[][]> {
+    if (!this.openai) return [];
+    const response = await this.openai.embeddings.create({ model: this.model, input: texts });
+    return response.data.sort((a, b) => a.index - b.index).map((item) => item.embedding);
+  }
+
+  // ─── Gemini ──────────────────────────────────────────────────────────────
+  private async embedGemini(texts: string[]): Promise<number[][]> {
+    const url = `${GEMINI_BASE}/models/${this.model}:batchEmbedContents?key=${this.geminiApiKey}`;
+    const body = {
+      requests: texts.map((text) => ({
+        model: `models/${this.model}`,
+        content: { parts: [{ text }] },
+      })),
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini embeddings HTTP ${response.status}: ${await response.text()}`);
+    }
+
+    const json = (await response.json()) as { embeddings?: { values?: number[] }[] };
+    return (json.embeddings ?? []).map((e) => e.values ?? []);
+  }
+
+  /** Ikki vektor orasidagi cosine o'xshashlik. Bo'sh bo'lsa 0. */
   cosineSimilarity(a: number[], b: number[]): number {
     if (a.length === 0 || b.length === 0 || a.length !== b.length) return 0;
 

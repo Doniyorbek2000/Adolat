@@ -14,12 +14,14 @@ class CitationModel {
   });
 
   factory CitationModel.fromJson(Map<String, dynamic> json) {
+    // Citation Engine shakli (law/source/article/date/link) va eski shaklni
+    // (sourceName/documentTitle/...) ikkalasini ham qo'llab-quvvatlaydi.
     return CitationModel(
-      sourceName: json['sourceName'] as String? ?? '',
-      documentTitle: json['documentTitle'] as String? ?? '',
-      articleRef: json['articleRef'] as String?,
-      documentUrl: json['documentUrl'] as String?,
-      publishedAt: json['publishedAt'] as String?,
+      sourceName: (json['source'] ?? json['sourceName'] ?? '') as String,
+      documentTitle: (json['law'] ?? json['documentTitle'] ?? '') as String,
+      articleRef: (json['article'] ?? json['articleRef']) as String?,
+      documentUrl: (json['link'] ?? json['documentUrl']) as String?,
+      publishedAt: (json['date'] ?? json['publishedAt']) as String?,
     );
   }
 }

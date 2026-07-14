@@ -150,3 +150,94 @@ describe('AiRouterService', () => {
     expect(JSON.stringify(status)).not.toMatch(/sk-|key/i);
   });
 });
+
+// ─── Streaming (SSE) ─────────────────────────────────────────────────────────
+
+function fakeStreamingClient(
+  provider: 'openai' | 'gemini' | 'claude',
+  opts: { configured: boolean; deltas?: string[]; failBeforeEmit?: boolean },
+): AiProviderClient {
+  return {
+    provider,
+    isConfigured: opts.configured,
+    complete: jest.fn(async () => ({
+      provider,
+      model: `${provider}-model`,
+      content: `full (${provider})`,
+      promptTokens: 1,
+      completionTokens: 1,
+      latencyMs: 1,
+      estimatedCostUsd: 0,
+    })),
+    async *stream() {
+      if (opts.failBeforeEmit) {
+        throw new AiProviderError(provider, 'stream failed before emit');
+      }
+      for (const d of opts.deltas ?? []) {
+        yield d;
+      }
+    },
+  };
+}
+
+const streamInput = {
+  userId: 'u1',
+  question: 'Mehnat shartnomasi?',
+  language: 'UZ' as never,
+  context: [{ sourceName: 'lex.uz', title: 'Kodeks', content: 'matn' }],
+};
+
+describe('AiRouterService — streamLegalAnswer', () => {
+  it('streams token deltas and returns the accumulated answer', async () => {
+    const gemini = fakeStreamingClient('gemini', { configured: true, deltas: ['Sa', 'lom', ' dunyo'] });
+    const service = new AiRouterService(
+      mockPrisma,
+      buildConfigService({ primaryProvider: 'gemini', fallbackProvider: 'gemini', fallbackProvider2: '' }),
+      fakeClient('openai', { configured: false }) as OpenAiProvider,
+      gemini as GeminiProvider,
+      fakeClient('claude', { configured: false }) as ClaudeProvider,
+    );
+
+    const tokens: string[] = [];
+    const result = await service.streamLegalAnswer(streamInput, (d) => tokens.push(d));
+
+    expect(tokens).toEqual(['Sa', 'lom', ' dunyo']);
+    expect(result.answer).toBe('Salom dunyo');
+    expect(result.provider).toBe('gemini');
+    expect(result.fallbackUsed).toBe(false);
+  });
+
+  it('falls back to complete() when a provider lacks streaming', async () => {
+    const noStream = fakeClient('gemini', { configured: true, succeed: true }); // stream yo'q
+    const service = new AiRouterService(
+      mockPrisma,
+      buildConfigService({ primaryProvider: 'gemini', fallbackProvider: 'gemini', fallbackProvider2: '' }),
+      fakeClient('openai', { configured: false }) as OpenAiProvider,
+      noStream as GeminiProvider,
+      fakeClient('claude', { configured: false }) as ClaudeProvider,
+    );
+
+    const tokens: string[] = [];
+    const result = await service.streamLegalAnswer(streamInput, (d) => tokens.push(d));
+
+    expect(result.answer).toBe('javob (gemini)');
+    expect(tokens).toEqual(['javob (gemini)']); // butun javob bitta bo'lak sifatida
+  });
+
+  it('falls back to the next provider if the first fails before emitting', async () => {
+    const failing = fakeStreamingClient('openai', { configured: true, failBeforeEmit: true });
+    const working = fakeStreamingClient('gemini', { configured: true, deltas: ['OK'] });
+    const service = new AiRouterService(
+      mockPrisma,
+      buildConfigService({ primaryProvider: 'openai', fallbackProvider: 'gemini', fallbackProvider2: '' }),
+      failing as OpenAiProvider,
+      working as GeminiProvider,
+      fakeClient('claude', { configured: false }) as ClaudeProvider,
+    );
+
+    const result = await service.streamLegalAnswer(streamInput, () => undefined);
+    expect(result.answer).toBe('OK');
+    expect(result.provider).toBe('gemini');
+    expect(result.fallbackUsed).toBe(true);
+  });
+});

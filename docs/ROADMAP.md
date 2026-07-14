@@ -7,21 +7,34 @@ Master-spec 41 bo'limdan iborat (mobil ilova + backend + admin panel uchun to'li
 | 1 | Monorepo/project structure | ✅ tayyor | `apps/{mobile,api,admin}`, `packages/shared`, `infra`, `docs` |
 | 2 | Backend skeleton (NestJS) | ✅ tayyor | config, validation pipe, logger, Swagger, health check |
 | 3 | Database schema (Prisma) | ✅ tayyor | to'liq jadval ro'yxati `prisma/schema.prisma` |
-| 4 | Auth (OTP/login/refresh/2FA) | ⏳ keyingi | |
-| 5 | Flutter mobile skeleton | ⏳ | theme, routing, localization, network, secure storage |
-| 6 | Mobile auth screens | ⏳ | |
-| 7 | Home/Dashboard | ⏳ | |
+| 4 | Auth (OTP/login/refresh/2FA) | ✅ tayyor | JWT access/refresh, OTP, 2FA, sessiyalar, parol tiklash |
+| 5 | Flutter mobile skeleton | ✅ tayyor | theme, routing, localization, network, secure storage |
+| 6 | Mobile auth screens | ✅ tayyor | |
+| 7 | Home/Dashboard | ✅ tayyor | |
 | 8 | AI Router | ✅ tayyor | OpenAI + Gemini + **Claude** (fallback zanjiri, log, cost estimate) |
-| 9 | RAG pipeline | ⏳ | source registry, ingestion, chunking, embeddings, retrieval |
-| 10 | Legal Chat | ⏳ | |
-| 11 | Document Analyzer | ⏳ | |
-| 12 | Document Generator | ⏳ | |
-| 13 | Voice Assistant | ⏳ | STT/TTS |
-| 14 | Subscription/Payment | ⏳ | Click + Payme webhook |
-| 15 | Admin panel | ⏳ | Next.js + Tailwind + shadcn/ui |
-| 16 | Security hardening | ⏳ | rate limit, audit, file scan, prompt injection |
-| 17 | Tests | ⏳ | |
-| 18 | Docker/deployment | ⏳ | |
+| 9 | RAG pipeline | ✅ tayyor | source registry, ingestion, chunking, embeddings, retrieval |
+| 10 | Legal Chat | ✅ tayyor | |
+| 11 | Document Analyzer | ✅ tayyor | |
+| 12 | Document Generator | ✅ tayyor | |
+| 13 | Voice Assistant | ✅ tayyor | Whisper STT + OpenAI TTS |
+| 14 | Subscription/Payment | ✅ tayyor | Click + Payme webhook (imzo tekshiruvi) |
+| 15 | Admin panel | ✅ tayyor | Next.js + Tailwind |
+| 16 | Security hardening | ✅ tayyor | helmet, CORS whitelist, throttler, audit-log |
+| 17 | Tests | 🟡 qisman | asosiy modullar (auth, ai-router, payments, chat...) qoplangan; qamrov kengaytirilmoqda |
+| 18 | Docker/deployment | 🟡 qisman | docker-compose + nginx tayyor; CI `.github/workflows/ci.yml` |
+
+## Ma'lum texnik qarzlar (keyingi bosqichlar uchun)
+
+- **RAG masshtablash**: ✅ `pgvector`'ga o'tkazildi. Embedding'lar `vector(1536)`
+  ustunida saqlanadi, qidiruv HNSW cosine indeks (`<=>`) orqali to'g'ridan-to'g'ri
+  PostgreSQL'da bajariladi (`retrieval.service.ts`). Embedding bo'lmaganda ILIKE
+  full-text fallback ishlaydi. Postgres image `pgvector/pgvector:pg16`.
+- **Push**: FCM HTTP v1 API'ga ko'chirildi (legacy server-key API o'chirilgan).
+  Ishlashi uchun service account (`FCM_PROJECT_ID/FCM_CLIENT_EMAIL/FCM_PRIVATE_KEY`) kerak.
+- **Test qamrovi**: e2e va qolgan servislar uchun testlar qo'shilishi kerak.
+- **Embedding o'lchovi**: `vector(1536)` ustuni `text-embedding-3-small`ga mos.
+  Boshqa o'lchovli modelga o'tilsa (masalan `text-embedding-3-large` = 3072),
+  ustun turi va indeksni yangi migratsiya bilan o'zgartirish kerak.
 
 ## AI provayderlar haqida eslatma
 

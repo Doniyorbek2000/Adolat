@@ -1,33 +1,37 @@
+# Adolat API — monorepo-aware image.
+# MUHIM: repo ILDIZIDAN quriladi (context = repo root):
+#   docker build -f apps/api/Dockerfile -t adolat-api:latest .
+# (docker-compose.prod.yml buni avtomatik qiladi.)
+
 # ---- Base ----
 FROM node:20-alpine AS base
 WORKDIR /app
 RUN apk add --no-cache openssl
 
-# ---- Dependencies ----
-FROM base AS deps
-COPY package*.json ./
-RUN npm ci --only=production && cp -r node_modules prod_modules
+# ---- Build ----
+FROM base AS build
+# Manifestlar + shared to'liq (shared'ning prepare skripti manba talab qiladi)
+COPY package.json package-lock.json ./
+COPY packages/shared ./packages/shared
+COPY apps/api/package.json ./apps/api/
 RUN npm ci
-
-# ---- Builder ----
-FROM deps AS builder
-COPY . .
-RUN npx prisma generate
-RUN npm run build
-
-# ---- Development ----
-FROM deps AS development
-COPY . .
-RUN npx prisma generate
-EXPOSE 4000
-CMD ["npm", "run", "start:dev"]
+RUN npm run build --workspace=packages/shared
+# Manba kodi
+COPY apps/api ./apps/api
+RUN npm run prisma:generate --workspace=apps/api
+RUN npm run build --workspace=apps/api
 
 # ---- Production ----
 FROM base AS production
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=deps /app/prod_modules ./node_modules
-COPY package*.json ./
+ENV NODE_ENV=production
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
+COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/apps/api/package.json ./apps/api/package.json
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/prisma ./apps/api/prisma
+WORKDIR /app/apps/api
 EXPOSE 4000
-CMD ["node", "dist/main"]
+# Migratsiyalarni qo'llab, so'ng serverni ishga tushiramiz.
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]

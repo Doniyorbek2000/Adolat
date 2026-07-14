@@ -105,52 +105,30 @@ export class PaymentsService {
   // Webhook handling
   // ----------------------------------------------------------------
 
-  async handleClickWebhook(payload: unknown, signature?: string): Promise<void> {
-    const valid = this.clickProvider.verifyWebhook(payload, signature);
+  // Click JSON oqimi ClickMerchantService orqali boshqariladi; u holat
+  // o'zgarganda quyidagi public metodlarni chaqiradi.
 
-    await this.prisma.paymentWebhookLog.create({
-      data: {
-        provider: PaymentProvider.CLICK,
-        rawPayload: payload as Prisma.InputJsonValue,
-        signatureValid: valid,
-      },
-    });
-
-    if (!valid) {
-      this.logger.warn('Click webhook signature invalid — logged but not processed');
-      return;
-    }
-
-    const result = await this.clickProvider.processWebhook(payload);
-    if (result.status === 'paid') {
-      await this.processPayment(result.invoiceId, PaymentProvider.CLICK);
-    } else if (result.status === 'failed' || result.status === 'cancelled') {
-      await this.markInvoiceFailed(result.invoiceId, result.status);
-    }
+  /** Click Complete — invoice to'landi, obunani faollashtiramiz. */
+  async settleClickPaid(invoiceId: string): Promise<void> {
+    await this.processPayment(invoiceId, PaymentProvider.CLICK);
   }
 
-  async handlePaymeWebhook(payload: unknown, authorization?: string): Promise<void> {
-    const valid = this.paymeProvider.verifyWebhook(payload, authorization);
+  /** Click bekor qilindi. */
+  async settleClickCancelled(invoiceId: string): Promise<void> {
+    await this.markInvoiceFailed(invoiceId, 'cancelled');
+  }
 
-    await this.prisma.paymentWebhookLog.create({
-      data: {
-        provider: PaymentProvider.PAYME,
-        rawPayload: payload as Prisma.InputJsonValue,
-        signatureValid: valid,
-      },
-    });
+  // Payme JSON-RPC oqimi PaymeMerchantService orqali boshqariladi; u holat
+  // o'zgarganda quyidagi public metodlarni chaqiradi.
 
-    if (!valid) {
-      this.logger.warn('Payme webhook auth invalid — logged but not processed');
-      return;
-    }
+  /** Payme PerformTransaction — invoice to'landi, obunani faollashtiramiz. */
+  async settlePaymePaid(invoiceId: string): Promise<void> {
+    await this.processPayment(invoiceId, PaymentProvider.PAYME);
+  }
 
-    const result = await this.paymeProvider.processWebhook(payload);
-    if (result.status === 'paid') {
-      await this.processPayment(result.invoiceId, PaymentProvider.PAYME);
-    } else if (result.status === 'failed' || result.status === 'cancelled') {
-      await this.markInvoiceFailed(result.invoiceId, result.status);
-    }
+  /** Payme CancelTransaction — invoice bekor qilindi. */
+  async settlePaymeCancelled(invoiceId: string): Promise<void> {
+    await this.markInvoiceFailed(invoiceId, 'cancelled');
   }
 
   // ----------------------------------------------------------------

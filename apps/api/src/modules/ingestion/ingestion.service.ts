@@ -82,21 +82,30 @@ export class IngestionService {
         doc.articleRef ??
         (/^(?:Modda\s+\d+|\d+-?modda|Статья\s+\d+)/i.test(firstLine) ? firstLine : null);
 
-      await this.prisma.legalSourceChunk.create({
+      const created = await this.prisma.legalSourceChunk.create({
         data: {
           versionId: version.id,
           chunkIndex: chunk.chunkIndex,
           content: chunk.content,
           articleRef: articleRef ?? null,
-          embeddingRef: embeddingVector.length > 0 ? JSON.stringify(embeddingVector) : null,
           metadata: {
-            embedding: embeddingVector,
             articleRef: articleRef ?? null,
             startChar: chunk.startChar,
             endChar: chunk.endChar,
           } as Prisma.InputJsonValue,
         },
       });
+
+      // Embedding'ni pgvector ustuniga xom SQL orqali yozamiz (Prisma Client
+      // Unsupported("vector") ustunini to'g'ridan-to'g'ri qo'llab-quvvatlamaydi).
+      if (embeddingVector.length > 0) {
+        const vectorLiteral = `[${embeddingVector.join(',')}]`;
+        await this.prisma.$executeRaw`
+          UPDATE "legal_source_chunks"
+          SET "embedding" = ${vectorLiteral}::vector
+          WHERE "id" = ${created.id}::uuid
+        `;
+      }
     }
 
     this.logger.log(

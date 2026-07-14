@@ -187,15 +187,24 @@ export class LegalDocumentService {
         const embeddingVector = hasEmbeddings ? (embeddings[i] ?? []) : [];
         const articleRef = this.extractArticleRef(chunk.content);
 
-        await this.prisma.legalSourceChunk.create({
+        const created = await this.prisma.legalSourceChunk.create({
           data: {
             versionId,
             chunkIndex: chunk.chunkIndex,
             content: chunk.content,
             articleRef: articleRef ?? null,
-            embeddingRef: embeddingVector.length > 0 ? JSON.stringify(embeddingVector) : null,
           },
         });
+
+        // Embedding'ni pgvector ustuniga xom SQL orqali yozamiz.
+        if (embeddingVector.length > 0) {
+          const vectorLiteral = `[${embeddingVector.join(',')}]`;
+          await this.prisma.$executeRaw`
+            UPDATE "legal_source_chunks"
+            SET "embedding" = ${vectorLiteral}::vector
+            WHERE "id" = ${created.id}::uuid
+          `;
+        }
       }
 
       await this.updateMeta(versionId, {

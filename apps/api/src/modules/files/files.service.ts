@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { FileStatus, UploadedFile } from '@prisma/client';
 import * as crypto from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
 
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { StorageService } from './storage/storage.service';
@@ -30,6 +29,12 @@ const ALLOWED_MIME_TYPES = new Set([
   'audio/mp4',
   'audio/x-wav',
   'audio/x-m4a',
+  // Rasm (OCR uchun — passport, ID, skaner, foto)
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/tiff',
 ]);
 
 @Injectable()
@@ -67,7 +72,7 @@ export class FilesService {
     this.validateFileSize(file.size);
 
     const ext = file.originalname.split('.').pop() ?? 'bin';
-    const storageKey = `users/${userId}/${uuidv4()}.${ext}`;
+    const storageKey = `users/${userId}/${crypto.randomUUID()}.${ext}`;
     const checksum = crypto.createHash('sha256').update(file.buffer).digest('hex');
 
     // Upload to storage

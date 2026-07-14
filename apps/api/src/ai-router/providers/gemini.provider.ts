@@ -29,6 +29,75 @@ export class GeminiProvider implements AiProviderClient {
     return Boolean(this.apiKey);
   }
 
+  /** generateContent / streamGenerateContent uchun umumiy so'rov tanasi. */
+  private buildBody(request: AiCompletionRequest): string {
+    return JSON.stringify({
+      systemInstruction: { role: 'system', parts: [{ text: request.systemPrompt }] },
+      contents: request.messages.map((message) => ({
+        role: message.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: message.content }],
+      })),
+      generationConfig: {
+        temperature: request.temperature ?? 0.2,
+        maxOutputTokens: request.maxOutputTokens ?? 1500,
+      },
+    });
+  }
+
+  /**
+   * Javobni SSE oqimi sifatida qaytaradi (`streamGenerateContent?alt=sse`).
+   * Har bir `yield` — matn deltasi.
+   */
+  async *stream(request: AiCompletionRequest, timeoutMs: number): AsyncGenerator<string> {
+    if (!this.isConfigured) {
+      throw new AiProviderError(this.provider, 'GEMINI_API_KEY sozlanmagan');
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:streamGenerateContent?alt=sse&key=${this.apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: this.buildBody(request),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!response.ok || !response.body) {
+      throw new AiProviderError(this.provider, `stream HTTP ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const data = trimmed.slice(5).trim();
+        if (!data || data === '[DONE]') continue;
+        try {
+          const json = JSON.parse(data) as {
+            candidates?: { content?: { parts?: { text?: string }[] } }[];
+          };
+          const text = json.candidates?.[0]?.content?.parts
+            ?.map((p) => p.text ?? '')
+            .join('');
+          if (text) yield text;
+        } catch {
+          // to'liq bo'lmagan JSON bo'lagi — keyingi o'qishda birlashadi
+        }
+      }
+    }
+  }
+
   async complete(request: AiCompletionRequest, timeoutMs: number): Promise<AiCompletionResult> {
     if (!this.isConfigured) {
       throw new AiProviderError(this.provider, 'GEMINI_API_KEY sozlanmagan');
@@ -43,17 +112,7 @@ export class GeminiProvider implements AiProviderClient {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { role: 'system', parts: [{ text: request.systemPrompt }] },
-          contents: request.messages.map((message) => ({
-            role: message.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: message.content }],
-          })),
-          generationConfig: {
-            temperature: request.temperature ?? 0.2,
-            maxOutputTokens: request.maxOutputTokens ?? 1500,
-          },
-        }),
+        body: this.buildBody(request),
       },
       timeoutMs,
     );

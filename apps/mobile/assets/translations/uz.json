@@ -8,6 +8,9 @@
   "select_language": "Tilni tanlang",
   "uzbek": "O'zbekcha",
   "russian": "Русский",
+  "english": "Inglizcha",
+  "turkish": "Turkcha",
+  "arabic": "Arabcha",
   "home": "Bosh sahifa",
   "chat": "Chat",
   "documents": "Hujjatlar",
@@ -108,5 +111,7 @@
   "terms_of_use": "Foydalanish shartlari",
   "logout_confirm": "Hisobingizdan chiqishni xohlaysizmi?",
   "logout_confirm_yes": "Ha, chiqish",
-  "logout_confirm_no": "Bekor qilish"
+  "logout_confirm_no": "Bekor qilish",
+  "coming_soon": "Tez kunda",
+  "voice_coming_soon_desc": "Ovozli yordamchi tez kunda ishga tushadi. Hozircha savollaringizni chat orqali yozib yuborishingiz mumkin."
 }

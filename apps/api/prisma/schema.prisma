@@ -2,12 +2,14 @@
 // PostgreSQL. Har bir jadvalda UUID PK, created_at/updated_at, kerak bo'lsa deleted_at (soft delete).
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 // ============================================================
@@ -209,6 +211,7 @@ model User {
   language       Language   @default(UZ)
   status         UserStatus @default(PENDING)
   isTwoFaEnabled Boolean    @default(false) @map("is_two_fa_enabled")
+  twoFaSecret    String?    @map("two_fa_secret")
   lastLoginAt    DateTime?  @map("last_login_at")
   metadata       Json?      @db.JsonB
   createdAt      DateTime   @default(now()) @map("created_at")
@@ -525,9 +528,53 @@ model Invoice {
   plan         SubscriptionPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
   subscription Subscription?     @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   payments     Payment[]
+  paymeTransactions PaymeTransaction[]
+  clickTransactions ClickTransaction[]
 
   @@index([userId, status])
   @@map("invoices")
+}
+
+/// Click Merchant API tranzaksiyasi (Prepare/Complete protokoli).
+/// status: PREPARING = tayyorlangan, PAID = to'langan, CANCELLED = bekor.
+model ClickTransaction {
+  id                String    @id @default(uuid()) @db.Uuid
+  clickTransId      String    @unique @map("click_trans_id")
+  invoiceId         String    @map("invoice_id") @db.Uuid
+  amount            Decimal   @db.Decimal(14, 2)
+  merchantPrepareId String?   @map("merchant_prepare_id")
+  status            String    @default("PREPARING")
+  paidAt            DateTime? @map("paid_at")
+  cancelledAt       DateTime? @map("cancelled_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("click_transactions")
+}
+
+/// Payme Merchant API tranzaksiyasi (JSON-RPC holat-mashinasi).
+/// state: 1 = yaratilgan, 2 = to'langan, -1 = yaratilgandan keyin bekor, -2 = to'langandan keyin bekor.
+/// Vaqtlar — epochdan beri millisekund (Payme talabi).
+model PaymeTransaction {
+  id          String   @id @default(uuid()) @db.Uuid
+  paymeId     String   @unique @map("payme_id")
+  invoiceId   String   @map("invoice_id") @db.Uuid
+  amount      BigInt
+  state       Int      @default(1)
+  createTime  BigInt   @map("create_time")
+  performTime BigInt   @default(0) @map("perform_time")
+  cancelTime  BigInt   @default(0) @map("cancel_time")
+  reason      Int?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("payme_transactions")
 }
 
 model Payment {
@@ -774,7 +821,10 @@ model LegalSourceChunk {
   chunkIndex   Int      @map("chunk_index")
   content      String   @db.Text
   articleRef   String?  @map("article_ref")
-  embeddingRef String?  @map("embedding_ref")
+  // pgvector ustuni (Gemini text-embedding-004 → 768 o'lchov). Prisma Client uni
+  // to'g'ridan-to'g'ri o'qimaydi/yozmaydi — yozish ingestion'da, qidiruv esa
+  // retrieval'da xom SQL (`<=>` cosine distance) orqali amalga oshiriladi.
+  embedding    Unsupported("vector(768)")?
   metadata     Json?    @db.JsonB
   createdAt    DateTime @default(now()) @map("created_at")
 

@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -11,6 +11,9 @@ import { AppSettings } from './config/app.config';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { initSentry } from './common/monitoring/sentry.util';
+import { MetricsService } from './common/monitoring/metrics.service';
+import { MetricsInterceptor } from './common/monitoring/metrics.interceptor';
 
 const REQUEST_BODY_SIZE_LIMIT = '10mb';
 
@@ -18,6 +21,11 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const configService = app.get(ConfigService<{ app: AppSettings }, true>);
   const appSettings = configService.get('app', { infer: true });
+
+  // --- Sentry (SENTRY_DSN berilgan bo'lsa) ---
+  if (initSentry(process.env.SENTRY_DSN, process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV ?? 'production')) {
+    Logger.log('Sentry yoqildi', 'Bootstrap');
+  }
 
   // --- Security headers & request hardening ---
   app.use(helmet());
@@ -45,7 +53,11 @@ async function bootstrap(): Promise<void> {
 
   // --- Yagona javob va xato formatlari ---
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(new LoggingInterceptor(), new ResponseInterceptor());
+  app.useGlobalInterceptors(
+    new MetricsInterceptor(app.get(MetricsService)),
+    new LoggingInterceptor(),
+    new ResponseInterceptor(app.get(Reflector)),
+  );
 
   // --- Swagger / OpenAPI ---
   const swaggerConfig = new DocumentBuilder()

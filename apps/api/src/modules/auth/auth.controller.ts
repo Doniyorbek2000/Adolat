@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 
 import { CurrentUser, RequestUser } from '../../common/decorators/current-user.decorator';
@@ -14,6 +15,8 @@ import { RegisterDto } from './dto/register.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { DisableTwoFactorDto, EnableTwoFactorDto } from './dto/two-factor.dto';
+import { TwoFactorService } from './two-factor.service';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import { RefreshTokenUser } from './types/auth-user.type';
 
@@ -30,9 +33,13 @@ const buildContext = (req: Request): RequestContext => {
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly twoFactorService: TwoFactorService,
+  ) {}
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Yangi foydalanuvchini ro'yxatdan o'tkazish (telefon yoki email orqali)" })
@@ -43,6 +50,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'OTP kodni tasdiqlash — hisobni faollashtiradi va token beradi' })
@@ -52,6 +60,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @Post('resend-otp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Tasdiqlash kodini qayta yuborish (cooldown bilan)' })
@@ -61,6 +70,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Telefon/email va parol orqali tizimga kirish' })
@@ -96,6 +106,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -107,6 +118,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Tasdiqlash kodi orqali yangi parol o'rnatish — barcha sessiyalarni tugatadi" })
@@ -121,5 +133,39 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Foydalanuvchi profili' })
   me(@CurrentUser() user: RequestUser) {
     return this.authService.me(user.id);
+  }
+
+  // ─── Two-factor authentication (TOTP) ───────────────────────────────────────
+
+  @Post('2fa/setup')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({ summary: '2FA (TOTP) sirini yaratish — QR/otpauth URL qaytaradi' })
+  @ApiResponse({ status: 200, description: 'Secret va otpauth URL' })
+  setupTwoFactor(@CurrentUser() user: RequestUser) {
+    return this.twoFactorService.setup(user.id);
+  }
+
+  @Post('2fa/enable')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Authenticator kodini tasdiqlab 2FA ni yoqish' })
+  @ApiResponse({ status: 200, description: '2FA yoqildi' })
+  async enableTwoFactor(@CurrentUser() user: RequestUser, @Body() dto: EnableTwoFactorDto) {
+    await this.twoFactorService.enable(user.id, dto.code);
+    return { success: true, isTwoFaEnabled: true };
+  }
+
+  @Post('2fa/disable')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Parol bilan tasdiqlab 2FA ni o\'chirish' })
+  @ApiResponse({ status: 200, description: '2FA o\'chirildi' })
+  async disableTwoFactor(@CurrentUser() user: RequestUser, @Body() dto: DisableTwoFactorDto) {
+    await this.twoFactorService.disable(user.id, dto.password);
+    return { success: true, isTwoFaEnabled: false };
   }
 }

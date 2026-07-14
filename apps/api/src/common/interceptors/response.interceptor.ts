@@ -1,6 +1,9 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+
+import { RAW_RESPONSE_KEY } from '../decorators/raw-response.decorator';
 
 export interface SuccessResponseBody<T> {
   success: true;
@@ -20,8 +23,22 @@ const DEFAULT_MESSAGE = 'Muvaffaqiyatli';
  * "Muvaffaqiyatli" xabari qo'llanadi va butun qaytarilgan qiymat `data` bo'ladi.
  */
 @Injectable()
-export class ResponseInterceptor<T> implements NestInterceptor<T, SuccessResponseBody<T>> {
-  intercept(context: ExecutionContext, next: CallHandler<T>): Observable<SuccessResponseBody<T>> {
+export class ResponseInterceptor<T> implements NestInterceptor<T, SuccessResponseBody<T> | T> {
+  constructor(private readonly reflector: Reflector) {}
+
+  intercept(
+    context: ExecutionContext,
+    next: CallHandler<T>,
+  ): Observable<SuccessResponseBody<T> | T> {
+    // Xom javob kutgan endpointlar (masalan Payme JSON-RPC) — o'ramaymiz.
+    const isRaw = this.reflector.getAllAndOverride<boolean>(RAW_RESPONSE_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isRaw) {
+      return next.handle();
+    }
+
     return next.handle().pipe(
       map((payload) => {
         const { message, data } = this.unwrap(payload);
