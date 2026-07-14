@@ -211,6 +211,7 @@ model User {
   language       Language   @default(UZ)
   status         UserStatus @default(PENDING)
   isTwoFaEnabled Boolean    @default(false) @map("is_two_fa_enabled")
+  twoFaSecret    String?    @map("two_fa_secret")
   lastLoginAt    DateTime?  @map("last_login_at")
   metadata       Json?      @db.JsonB
   createdAt      DateTime   @default(now()) @map("created_at")

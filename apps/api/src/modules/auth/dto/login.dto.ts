@@ -22,4 +22,12 @@ export class LoginDto {
   @IsOptional()
   @IsString()
   deviceId?: string;
+
+  @ApiPropertyOptional({
+    example: '123456',
+    description: '2FA yoqilgan hisoblar uchun authenticator kodi (6 raqam)',
+  })
+  @IsOptional()
+  @IsString()
+  twoFaCode?: string;
 }

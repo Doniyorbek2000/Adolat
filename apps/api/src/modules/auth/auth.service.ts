@@ -29,6 +29,7 @@ import { generateOtpCode, getOtpExpiry, hashOtpCode, verifyOtpCode } from './uti
 import { randomBytes } from 'crypto';
 
 import { hashPassword, verifyPassword } from './utils/password.util';
+import { verifyTotp } from './utils/totp.util';
 import { calculateExpiry, generateTokenId, hashToken } from './utils/token.util';
 
 export interface RequestContext {
@@ -241,6 +242,22 @@ export class AuthService {
     const passwordOk = await verifyPassword(user.passwordHash, dto.password);
     if (!passwordOk) {
       throw new UnauthorizedException(GENERIC_LOGIN_ERROR);
+    }
+
+    // Ikki bosqichli autentifikatsiya (TOTP) — yoqilgan bo'lsa kod majburiy
+    if (user.isTwoFaEnabled) {
+      if (!dto.twoFaCode) {
+        throw new UnauthorizedException({
+          message: '2FA kodi talab qilinadi',
+          errorCode: 'TWO_FA_REQUIRED',
+        });
+      }
+      if (!user.twoFaSecret || !verifyTotp(user.twoFaSecret, dto.twoFaCode)) {
+        throw new UnauthorizedException({
+          message: "Noto'g'ri 2FA kodi",
+          errorCode: 'TWO_FA_INVALID',
+        });
+      }
     }
 
     const session = await this.createSession(user.id, context, dto.deviceId ?? null);
